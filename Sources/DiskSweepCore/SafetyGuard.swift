@@ -1,0 +1,214 @@
+import Foundation
+
+/// Project build artifacts that may be offered for removal inside ~/Developer,
+/// and the files that prove a directory really is that kind of artifact.
+public enum ProjectArtifacts {
+    /// artifact directory name -> files that must sit NEXT TO it (any one of them).
+    public static let siblingMarkers: [String: [String]] = [
+        "node_modules": ["package.json"],
+        ".next": ["package.json"],
+        ".nuxt": ["package.json"],
+        ".svelte-kit": ["package.json"],
+        ".turbo": ["package.json"],
+        ".parcel-cache": ["package.json"],
+        ".build": ["Package.swift"],
+        "target": ["Cargo.toml", "pom.xml"],
+        "Pods": ["Podfile"],
+    ]
+
+    /// Python virtual environments are recognised by a file INSIDE them.
+    public static let virtualEnvNames: Set<String> = [".venv", "venv"]
+
+    public static let names: Set<String> = Set(siblingMarkers.keys).union(virtualEnvNames)
+}
+
+/// The single gatekeeper for every file deletion. Nothing is removed unless
+/// one of the `validate...` methods approves the exact path, both when it is
+/// listed and again right before it is deleted.
+///
+/// Two separate rule sets exist:
+/// - `validateRemoval`: the curated allow-list used by the cleanup categories
+///   (caches, DerivedData, project artifacts, ...).
+/// - `validateUserTrash`: used by the folder scanner for files the user picks
+///   by hand. Only ever moves to the Trash, and refuses sensitive areas.
+///
+/// Folders the user excluded are protected by BOTH: neither the excluded folder,
+/// anything inside it, nor any item that would contain it can be removed.
+public struct SafetyGuard: Sendable {
+    public enum Violation: Error, Equatable, CustomStringConvertible, Sendable {
+        case notFileURL
+        case outsideAllowedLocations(String)
+        case protectedLocation(String)
+        case excludedByUser(String)
+        case viewOnly(String)
+
+        public var description: String {
+            switch self {
+            case .notFileURL: return "Dosya yolu değil"
+            case .outsideAllowedLocations(let path): return "İzin verilen konumların dışında: \(path)"
+            case .protectedLocation(let why): return "Korunan konum (\(why))"
+            case .excludedByUser: return "Dışlanmış klasör — dokunulmaz"
+            case .viewOnly(let why): return "Yalnızca görüntülenir: \(why)"
+            }
+        }
+    }
+
+    private enum Rule: Sendable {
+        /// The item must be a DIRECT child of this directory.
+        case childOf(String)
+        /// The item must be exactly this path.
+        case exactly(String)
+    }
+
+    public let home: URL
+    /// Canonical paths the user asked this app never to touch.
+    public let excludedPaths: [String]
+    private let rules: [Rule]
+    private let developerPath: String
+    private let cachesPath: String
+
+    public init(home: URL = FileManager.default.homeDirectoryForCurrentUser, excluded: [URL] = []) {
+        let canonicalHome = home.standardizedFileURL.resolvingSymlinksInPath()
+        func path(_ relative: String) -> String { canonicalHome.appendingPathComponent(relative).path }
+
+        self.home = canonicalHome
+        var seen = Set<String>()
+        self.excludedPaths = excluded
+            .map { $0.standardizedFileURL.resolvingSymlinksInPath().path }
+            .filter { !$0.isEmpty && seen.insert($0).inserted }
+        self.developerPath = path("Developer")
+        self.cachesPath = path("Library/Caches")
+        self.rules = [
+            // Xcode
+            .childOf(path("Library/Developer/Xcode/DerivedData")),
+            .childOf(path("Library/Developer/Xcode/iOS DeviceSupport")),
+            .childOf(path("Library/Developer/Xcode/watchOS DeviceSupport")),
+            .childOf(path("Library/Developer/Xcode/tvOS DeviceSupport")),
+            .childOf(path("Library/Developer/Xcode/visionOS DeviceSupport")),
+            .childOf(path("Library/Developer/Xcode/Archives")),
+            .exactly(path("Library/Developer/Xcode/DocumentationCache")),
+            .exactly(path("Library/Developer/CoreSimulator/Caches")),
+            // Package manager caches
+            .exactly(path(".npm/_cacache")),
+            .exactly(path(".bun/install/cache")),
+            .exactly(path(".cargo/registry/cache")),
+            .exactly(path(".gradle/caches")),
+            .childOf(path(".cache")),
+            // System / app
+            .childOf(path("Library/Caches")),
+            .childOf(path("Library/Logs")),
+            .childOf(path(".Trash")),
+            .childOf(path("Library/Application Support/MobileSync/Backup")),
+        ]
+    }
+
+    public func withExcluded(_ urls: [URL]) -> SafetyGuard {
+        SafetyGuard(home: home, excluded: urls)
+    }
+
+    // MARK: - Exclusions
+
+    /// True when `path` is an excluded folder, lies inside one, or would contain one.
+    public func isExcluded(_ path: String) -> Bool {
+        excludedPaths.contains { excluded in
+            path == excluded || path.hasPrefix(excluded + "/") || excluded.hasPrefix(path + "/")
+        }
+    }
+
+    // MARK: - Curated cleanup locations
+
+    /// Returns the canonical path that may be removed, or throws.
+    @discardableResult
+    public func validateRemoval(of url: URL) throws -> URL {
+        let candidate = try canonicalCandidate(url)
+        let components = candidate.pathComponents
+        let name = candidate.lastPathComponent
+
+        if isExcluded(candidate.path) { throw Violation.excludedByUser(candidate.path) }
+        try rejectAlwaysProtected(components: components, name: name)
+
+        for rule in rules {
+            switch rule {
+            case .childOf(let root):
+                guard candidate.deletingLastPathComponent().path == root else { continue }
+                if root == cachesPath, name.hasPrefix("com.apple."), name != "com.apple.dt.Xcode" {
+                    throw Violation.protectedLocation("Apple sistem önbelleği")
+                }
+                return candidate
+            case .exactly(let path):
+                if candidate.path == path { return candidate }
+            }
+        }
+
+        // Build artifacts inside ~/Developer.
+        let insideDeveloper = candidate.path.hasPrefix(developerPath + "/")
+        let ancestorIsArtifact = components.dropLast().contains { ProjectArtifacts.names.contains($0) }
+        if insideDeveloper, ProjectArtifacts.names.contains(name), !ancestorIsArtifact {
+            return candidate
+        }
+
+        throw Violation.outsideAllowedLocations(candidate.path)
+    }
+
+    // MARK: - Files the user picks by hand (Trash only)
+
+    private static let cloudFolderNames: Set<String> = [
+        "Dropbox", "Google Drive", "GoogleDrive", "Box", "iCloud Drive", "Creative Cloud Files", "pCloud Drive",
+    ]
+    private static let protectedBundleSuffixes = [".app", ".photoslibrary", ".musiclibrary", ".tvlibrary"]
+
+    /// Approves moving a user-selected item to the Trash, or throws a reason
+    /// that is shown to the user ("view only").
+    @discardableResult
+    public func validateUserTrash(of url: URL) throws -> URL {
+        let candidate = try canonicalCandidate(url)
+        let components = candidate.pathComponents
+        let name = candidate.lastPathComponent
+
+        if isExcluded(candidate.path) { throw Violation.excludedByUser(candidate.path) }
+        try rejectAlwaysProtected(components: components, name: name)
+
+        guard candidate.path.hasPrefix(home.path + "/") else {
+            throw Violation.viewOnly("ana klasörünün dışı")
+        }
+        let relative = Array(components.dropFirst(home.pathComponents.count))
+        guard relative.count >= 2 else {
+            throw Violation.viewOnly("ana klasördeki klasörler korunur, içine girip seçin")
+        }
+        let top = relative[0]
+        if top == "Library" || top.hasPrefix(".") {
+            throw Violation.viewOnly("Library ve gizli klasörler")
+        }
+        if top.hasPrefix("OneDrive") || Self.cloudFolderNames.contains(top) {
+            throw Violation.viewOnly("bulutla senkronize klasör")
+        }
+        if components.dropLast().contains(where: { part in
+            Self.protectedBundleSuffixes.contains { part.hasSuffix($0) }
+        }) {
+            throw Violation.viewOnly("uygulama/kütüphane paketinin içi")
+        }
+        return candidate
+    }
+
+    // MARK: - Shared
+
+    /// Canonical path of the item: symlinks are resolved in the PARENT only, so a
+    /// symlink item is removed as a link and its target is never touched.
+    private func canonicalCandidate(_ url: URL) throws -> URL {
+        guard url.isFileURL else { throw Violation.notFileURL }
+        let standardized = url.standardizedFileURL
+        let name = standardized.lastPathComponent
+        guard !name.isEmpty, name != "/", name != ".", name != ".." else {
+            throw Violation.outsideAllowedLocations(url.path)
+        }
+        let parent = standardized.deletingLastPathComponent().resolvingSymlinksInPath()
+        return parent.appendingPathComponent(name)
+    }
+
+    private func rejectAlwaysProtected(components: [String], name: String) throws {
+        if components.contains(".git") { throw Violation.protectedLocation("git verisi") }
+        if components.contains("com.docker.docker") || name == "Docker.raw" {
+            throw Violation.protectedLocation("Docker disk imajı")
+        }
+    }
+}
