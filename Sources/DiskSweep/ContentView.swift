@@ -7,7 +7,7 @@ import DiskSweepCore
 struct ContentView: View {
     @State private var store = ScanStore()
     @State private var selectedID: String?
-    @State private var showExclusions = false
+    @State private var navigation = AppNavigation.shared
     @FocusState private var searchFocused: Bool
 
     init() {
@@ -16,7 +16,7 @@ struct ContentView: View {
     }
 
     private var detailKey: String {
-        if selectedID == FolderScan.categoryID { return FolderScan.categoryID }
+        if selectedID == FolderScan.categoryID || selectedID == AppNavigation.settingsPage { return selectedID ?? "" }
         return (selectedID ?? "") + (store.isSearching ? "|search" : "")
     }
 
@@ -24,7 +24,7 @@ struct ContentView: View {
         @Bindable var store = store
 
         HStack(spacing: 0) {
-            SidebarView(store: store, selection: $selectedID, showExclusions: $showExclusions)
+            SidebarView(store: store, selection: $selectedID, showExclusions: $store.showExclusions)
                 .frame(width: 304)
                 .background(.regularMaterial)
             Divider()
@@ -51,14 +51,19 @@ struct ContentView: View {
         }
         .sheet(isPresented: $store.showConfirmation) { ConfirmSheet(store: store) }
         .sheet(isPresented: $store.showResults) { ResultSheet(store: store) }
-        .sheet(isPresented: $showExclusions) { ExclusionsSheet(store: store) }
+        .sheet(isPresented: $store.showExclusions) { ExclusionsSheet(store: store) }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             store.refreshStale()
+        }
+        .onChange(of: navigation.request) { _, request in
+            guard let request else { return }
+            withAnimation(Motion.snappy) { selectedID = request }
+            navigation.request = nil
         }
         .task {
             let defaults = UserDefaults.standard
             if let query = defaults.string(forKey: "DiskSweepSearch") { store.searchText = query }
-            if defaults.bool(forKey: "DiskSweepExclusions") { showExclusions = true }
+            if defaults.bool(forKey: "DiskSweepExclusions") { store.showExclusions = true }
             store.scanAll()
             if defaults.bool(forKey: "DiskSweepPreselect") {
                 // Screenshot testing only: selects (never deletes) the safe items.
@@ -79,7 +84,9 @@ struct ContentView: View {
     }
 
     @ViewBuilder private var detail: some View {
-        if selectedID == FolderScan.categoryID {
+        if selectedID == AppNavigation.settingsPage {
+            SettingsPage(store: store)
+        } else if selectedID == FolderScan.categoryID {
             FolderPage(store: store)
         } else if store.isSearching {
             SearchPage(store: store)
@@ -137,6 +144,8 @@ struct SidebarView: View {
                     SidebarSection(title: "Araçlar") {
                         SidebarRow(id: FolderScan.categoryID, title: "Klasör Tara", symbol: "magnifyingglass",
                                    tint: .indigo, selection: $selection, namespace: highlight) { EmptyView() }
+                        SidebarRow(id: AppNavigation.settingsPage, title: "Ayarlar", symbol: "gearshape.fill",
+                                   tint: .gray, selection: $selection, namespace: highlight) { EmptyView() }
                     }
                     ForEach(CategoryGroup.allCases, id: \.self) { group in
                         SidebarSection(title: group.title) {

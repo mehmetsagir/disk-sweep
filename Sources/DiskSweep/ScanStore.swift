@@ -31,6 +31,7 @@ final class ScanStore {
     var folderURL: URL
 
     var showConfirmation = false
+    var showExclusions = false
     var isDeleting = false
     var deletingTitle = ""
     var deletingProgress = 0
@@ -144,7 +145,7 @@ final class ScanStore {
 
     /// Re-scans whatever the user is looking at once it is stale (quietly, no flicker).
     func refreshVisible(_ id: String?) {
-        guard !isDeleting, !isSearching, let id else { return }
+        guard AppSettings.autoRefreshEnabled, !isDeleting, !isSearching, let id else { return }
         if id == FolderScan.categoryID {
             if states[id]?.isScanning != true, age(of: id) > 30 { openFolder(folderURL, quiet: true) }
         } else if let category = Catalog.all.first(where: { $0.id == id }),
@@ -157,6 +158,7 @@ final class ScanStore {
     func refreshStale() {
         guard !isDeleting else { return }
         refreshDisk()
+        guard AppSettings.autoRefreshEnabled else { return }
         for category in Catalog.all where states[category.id]?.isScanning != true && age(of: category.id) > maxAge(of: category.id) {
             scan(category)
         }
