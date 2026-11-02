@@ -34,13 +34,15 @@ public enum Shell {
         return (extra + [existing]).joined(separator: ":")
     }
 
-    public static func run(executable: String, arguments: [String], timeout: TimeInterval = 60) async -> ShellResult {
+    public static func run(executable: String, arguments: [String], timeout: TimeInterval = 60,
+                           environment extra: [String: String] = [:]) async -> ShellResult {
         await withCheckedContinuation { continuation in
             let process = Process()
             process.executableURL = URL(fileURLWithPath: executable)
             process.arguments = arguments
             var environment = ProcessInfo.processInfo.environment
             environment["PATH"] = searchPath
+            for (key, value) in extra { environment[key] = value }
             process.environment = environment
 
             let outPipe = Pipe()

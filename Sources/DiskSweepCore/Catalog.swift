@@ -471,8 +471,15 @@ enum Scanners {
                                    reason: "Python sanal ortamı — Çöp Kutusu'na taşınır")
         }
 
+        // The repository may be someone else's clone, and git reads its .git/config.
+        // Switch off the settings that make git run external programs, but keep the
+        // user's global config (their global ignore file affects the result).
         let ignoreCheck = await Shell.run(
-            executable: "/usr/bin/git", arguments: ["-C", parent.path, "check-ignore", "-q", "--", name], timeout: 10)
+            executable: "/usr/bin/git",
+            arguments: ["-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null",
+                        "-C", parent.path, "check-ignore", "-q", "--", name],
+            timeout: 10,
+            environment: ["GIT_OPTIONAL_LOCKS": "0", "GIT_TERMINAL_PROMPT": "0"])
         let ignored: Bool? = ignoreCheck.timedOut ? nil : (ignoreCheck.status == 0 ? true : (ignoreCheck.status == 1 ? false : nil))
 
         if name == "node_modules" {
