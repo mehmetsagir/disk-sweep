@@ -17,11 +17,11 @@ struct CategoryPage: View {
                 isScanning: state.isScanning, lastScanned: store.lastScanned[category.id],
                 note: state.note, onRefresh: { store.scan(category) }
             ) {
-                PillButton(title: "Güvenlileri seç", symbol: "checkmark.shield") {
+                PillButton(title: L("Güvenlileri seç"), symbol: "checkmark.shield") {
                     withAnimation(Motion.snappy) { store.selectSafe(in: state.items) }
                 }
                 .disabled(!state.items.contains { $0.safety == .safe && $0.isSelectable })
-                PillButton(title: "Seçimi temizle", symbol: "xmark") {
+                PillButton(title: L("Seçimi temizle"), symbol: "xmark") {
                     withAnimation(Motion.snappy) { store.clearSelection(in: state.items) }
                 }
                 .disabled(!state.items.contains { store.isSelected($0) })
@@ -31,8 +31,8 @@ struct CategoryPage: View {
                 if state.isScanning || !state.hasScanned {
                     SkeletonList()
                 } else {
-                    EmptyState(symbol: "sparkles", title: "Burası tertemiz",
-                               message: "Bu kategoride temizlenebilecek bir şey bulunamadı.", tint: category.group.tint)
+                    EmptyState(symbol: "sparkles", title: L("Burası tertemiz"),
+                               message: L("Bu kategoride temizlenebilecek bir şey bulunamadı."), tint: category.group.tint)
                 }
             } else {
                 ItemListView(store: store, items: state.items)
@@ -53,23 +53,23 @@ struct SearchPage: View {
 
         VStack(spacing: 0) {
             PageHeader(
-                symbol: "magnifyingglass", tint: .indigo, title: "Arama sonuçları",
-                summary: "\"\(store.searchText)\" için tüm kategorilerde \(results.count) sonuç."
-                    + (store.isScanningAnything ? " Bazı kategoriler hâlâ taranıyor." : "")
+                symbol: "magnifyingglass", tint: .indigo, title: L("Arama sonuçları"),
+                summary: L("\"\(store.searchText)\" için tüm kategorilerde \(results.count) sonuç.")
+                    + (store.isScanningAnything ? L(" Bazı kategoriler hâlâ taranıyor.") : "")
             ) {
-                PillButton(title: "Güvenlileri seç", symbol: "checkmark.shield") {
+                PillButton(title: L("Güvenlileri seç"), symbol: "checkmark.shield") {
                     withAnimation(Motion.snappy) { store.selectSafe(in: items) }
                 }
                 .disabled(!items.contains { $0.safety == .safe && $0.isSelectable })
-                PillButton(title: "Seçimi temizle", symbol: "xmark") {
+                PillButton(title: L("Seçimi temizle"), symbol: "xmark") {
                     withAnimation(Motion.snappy) { store.clearSelection(in: items) }
                 }
                 .disabled(!items.contains { store.isSelected($0) })
             }
 
             if items.isEmpty {
-                EmptyState(symbol: "magnifyingglass", title: "Sonuç yok",
-                           message: "\"\(store.searchText)\" ile eşleşen bir öğe bulunamadı.", tint: .indigo)
+                EmptyState(symbol: "magnifyingglass", title: L("Sonuç yok"),
+                           message: L("\"\(store.searchText)\" ile eşleşen bir öğe bulunamadı."), tint: .indigo)
             } else {
                 ItemListView(store: store, items: items, categoryTitles: titles)
             }
@@ -90,19 +90,19 @@ struct FolderPage: View {
 
         VStack(spacing: 0) {
             PageHeader(
-                symbol: "magnifyingglass", tint: .indigo, title: "Klasör Tara",
-                summary: "Klasörlerin içine girip en büyük dosya ve klasörleri bulun. Çöp Kutusu'na taşınabilenler seçilebilir; Library, gizli, bulut klasörleri, git verisi ve dışladıklarınız yalnızca görüntülenir.",
-                reclaimable: total, reclaimableLabel: "bu klasörün boyutu", isScanning: state.isScanning,
+                symbol: "magnifyingglass", tint: .indigo, title: L("Klasör Tara"),
+                summary: L("Klasörlerin içine girip en büyük dosya ve klasörleri bulun. Çöp Kutusu'na taşınabilenler seçilebilir; Library, gizli, bulut klasörleri, git verisi ve dışladıklarınız yalnızca görüntülenir."),
+                reclaimable: total, reclaimableLabel: L("bu klasörün boyutu"), isScanning: state.isScanning,
                 lastScanned: store.lastScanned[FolderScan.categoryID], note: state.note,
                 onRefresh: { store.openFolder(store.folderURL, quiet: true) }
             ) {
-                PillButton(title: "Üst klasör", symbol: "arrow.up") { store.openParentFolder() }
+                PillButton(title: L("Üst klasör"), symbol: "arrow.up") { store.openParentFolder() }
                     .disabled(store.folderURL.path == "/")
-                PillButton(title: "Ana klasör", symbol: "house") {
+                PillButton(title: L("Ana klasör"), symbol: "house") {
                     store.openFolder(FileManager.default.homeDirectoryForCurrentUser)
                 }
-                PillButton(title: "Klasör seç…", symbol: "folder.badge.plus") { store.chooseFolder() }
-                PillButton(title: "Seçimi temizle", symbol: "xmark") {
+                PillButton(title: L("Klasör seç…"), symbol: "folder.badge.plus") { store.chooseFolder() }
+                PillButton(title: L("Seçimi temizle"), symbol: "xmark") {
                     withAnimation(Motion.snappy) { store.clearSelection(in: state.items) }
                 }
                 .disabled(!state.items.contains { store.isSelected($0) })
@@ -116,7 +116,7 @@ struct FolderPage: View {
                 VStack(alignment: .leading, spacing: 4) {
                     ProgressView(value: Double(known.count), total: Double(max(state.items.count, 1)))
                         .animation(Motion.smooth, value: known.count)
-                    Text("\(known.count) / \(state.items.count) boyut hesaplandı")
+                    Text(L("\(known.count) / \(state.items.count) boyut hesaplandı"))
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 .padding(.horizontal, 24)
@@ -128,11 +128,11 @@ struct FolderPage: View {
                 SkeletonList()
             } else if visible.isEmpty {
                 if store.isSearching {
-                    EmptyState(symbol: "magnifyingglass", title: "Sonuç yok",
-                               message: "Bu klasörde \"\(store.searchText)\" ile eşleşen bir şey yok.", tint: .indigo)
+                    EmptyState(symbol: "magnifyingglass", title: L("Sonuç yok"),
+                               message: L("Bu klasörde \"\(store.searchText)\" ile eşleşen bir şey yok."), tint: .indigo)
                 } else {
-                    EmptyState(symbol: "folder", title: "Klasör boş",
-                               message: "Bu klasörde gösterilecek bir şey yok.", tint: .indigo)
+                    EmptyState(symbol: "folder", title: L("Klasör boş"),
+                               message: L("Bu klasörde gösterilecek bir şey yok."), tint: .indigo)
                 }
             } else {
                 ItemListView(store: store, items: visible) { item in

@@ -6,7 +6,7 @@ public enum FolderScan {
     public static let categoryID = "folder-scan"
 
     public static let accessDeniedNote =
-        "Bu klasöre erişim reddedildi. Sistem Ayarları → Gizlilik ve Güvenlik → Tam Disk Erişimi'ne DiskSweep'i ekleyip yeniden başlatın."
+        L("Bu klasöre erişim reddedildi. Sistem Ayarları → Gizlilik ve Güvenlik → Tam Disk Erişimi'ne DiskSweep'i ekleyip yeniden başlatın.")
 
     /// Direct children, sorted by name. Hidden entries are included.
     public static func listChildren(of directory: URL) -> (urls: [URL], denied: Bool) {
@@ -25,7 +25,7 @@ public enum FolderScan {
             try guardrail.validateUserTrash(of: url)
             return CleanupItem(
                 id: id, categoryID: categoryID, title: url.lastPathComponent,
-                detail: isFolder ? "Klasör — Çöp Kutusu'na taşınabilir" : "Dosya — Çöp Kutusu'na taşınabilir",
+                detail: isFolder ? L("Klasör — Çöp Kutusu'na taşınabilir") : L("Dosya — Çöp Kutusu'na taşınabilir"),
                 size: size, safety: .caution, action: .trashUserSelected(url),
                 modified: modified, browseURL: url, isFolder: isFolder)
         } catch {

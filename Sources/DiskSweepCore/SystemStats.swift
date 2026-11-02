@@ -97,7 +97,7 @@ public struct SystemInfo: Sendable {
 
     public static func read() -> SystemInfo {
         SystemInfo(
-            cpuModel: sysctlString("machdep.cpu.brand_string") ?? "Bilinmeyen işlemci",
+            cpuModel: sysctlString("machdep.cpu.brand_string") ?? L("Bilinmeyen işlemci"),
             logicalCores: ProcessInfo.processInfo.processorCount,
             performanceCores: sysctlInt("hw.perflevel0.physicalcpu"),
             efficiencyCores: sysctlInt("hw.perflevel1.physicalcpu"))
@@ -439,9 +439,9 @@ extension Format {
         let days = total / 86_400
         let hours = (total % 86_400) / 3_600
         let minutes = (total % 3_600) / 60
-        if days > 0 { return "\(days) gün \(hours) sa" }
-        if hours > 0 { return "\(hours) sa \(minutes) dk" }
-        return "\(minutes) dk"
+        if days > 0 { return L("\(days) gün \(hours) sa") }
+        if hours > 0 { return L("\(hours) sa \(minutes) dk") }
+        return L("\(minutes) dk")
     }
 
     /// "1,2 MB/s"

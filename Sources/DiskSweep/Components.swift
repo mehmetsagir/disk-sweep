@@ -149,14 +149,14 @@ struct RefreshBadge: View {
             }
             .buttonStyle(.plain)
             .disabled(isScanning)
-            .help("Yeniden tara")
+            .help(L("Yeniden tara"))
         }
     }
 
     private var statusText: String {
-        if isScanning { return "Taranıyor…" }
+        if isScanning { return L("Taranıyor…") }
         guard let lastScanned else { return "" }
-        return "Güncellendi: \(Format.relative(lastScanned))"
+        return L("Güncellendi: \(Format.relative(lastScanned))")
     }
 }
 
@@ -166,7 +166,7 @@ struct PageHeader<Accessory: View>: View {
     let title: String
     let summary: String
     var reclaimable: Int64?
-    var reclaimableLabel = "temizlenebilir"
+    var reclaimableLabel = L("temizlenebilir")
     var isScanning = false
     var lastScanned: Date?
     var note: String?
@@ -174,7 +174,7 @@ struct PageHeader<Accessory: View>: View {
     let accessory: Accessory
 
     init(symbol: String, tint: Color, title: String, summary: String,
-         reclaimable: Int64? = nil, reclaimableLabel: String = "temizlenebilir",
+         reclaimable: Int64? = nil, reclaimableLabel: String = L("temizlenebilir"),
          isScanning: Bool = false, lastScanned: Date? = nil,
          note: String? = nil, onRefresh: (() -> Void)? = nil,
          @ViewBuilder accessory: () -> Accessory) {
@@ -242,7 +242,7 @@ struct PageHeader<Accessory: View>: View {
 
 extension PageHeader where Accessory == EmptyView {
     init(symbol: String, tint: Color, title: String, summary: String,
-         reclaimable: Int64? = nil, reclaimableLabel: String = "temizlenebilir",
+         reclaimable: Int64? = nil, reclaimableLabel: String = L("temizlenebilir"),
          isScanning: Bool = false, lastScanned: Date? = nil,
          note: String? = nil, onRefresh: (() -> Void)? = nil) {
         self.init(symbol: symbol, tint: tint, title: title, summary: summary,
@@ -341,8 +341,8 @@ struct ItemCard: View {
         }
         .contextMenu {
             if let url = item.path {
-                Button("Finder'da Göster") { NSWorkspace.shared.activateFileViewerSelecting([url]) }
-                Button("Dışlananlara Ekle") { store.addExcluded([url]) }
+                Button(L("Finder'da Göster")) { NSWorkspace.shared.activateFileViewerSelecting([url]) }
+                Button(L("Dışlananlara Ekle")) { store.addExcluded([url]) }
             }
         }
     }
@@ -399,7 +399,7 @@ struct ItemCard: View {
                         .background(Circle().fill(Color.primary.opacity(0.09)))
                 }
                 .buttonStyle(.plain)
-                .help("Klasörün içine gir")
+                .help(L("Klasörün içine gir"))
             }
         }
     }
@@ -421,7 +421,7 @@ struct FloatingActionBar: View {
                         ProgressView(value: Double(store.deletingProgress), total: Double(max(store.deletingTotal, 1)))
                             .frame(width: 150)
                             .animation(Motion.smooth, value: store.deletingProgress)
-                        Text("İşleniyor: \(store.deletingTitle)")
+                        Text(L("İşleniyor: \(store.deletingTitle)"))
                             .lineLimit(1)
                             .frame(maxWidth: 240, alignment: .leading)
                         Text("\(store.deletingProgress)/\(store.deletingTotal)")
@@ -435,17 +435,17 @@ struct FloatingActionBar: View {
                             .background(Circle().fill(Color.accentColor))
                             .contentTransition(.numericText(value: Double(count)))
                         VStack(alignment: .leading, spacing: 0) {
-                            Text("öğe seçili").font(.caption).foregroundStyle(.secondary)
+                            Text(L("öğe seçili")).font(.caption).foregroundStyle(.secondary)
                             Text(Format.bytes(store.selectedBytes))
                                 .font(.system(.title3, design: .rounded).weight(.bold))
                                 .contentTransition(.numericText(value: Double(store.selectedBytes)))
                         }
-                        Button("Kaldır") { withAnimation(Motion.spring) { store.clearAllSelection() } }
+                        Button(L("Kaldır")) { withAnimation(Motion.spring) { store.clearAllSelection() } }
                             .buttonStyle(.plain)
                             .foregroundStyle(.secondary)
                             .fixedSize()
                         Button { store.showConfirmation = true } label: {
-                            Label("Sil…", systemImage: "trash")
+                            Label(L("Sil…"), systemImage: "trash")
                                 .font(.body.weight(.semibold))
                                 .fixedSize()
                                 .padding(.horizontal, 6)

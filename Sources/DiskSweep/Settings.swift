@@ -78,51 +78,51 @@ struct SettingsPage: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            PageHeader(symbol: "gearshape.fill", tint: .gray, title: "Ayarlar",
-                       summary: "Başlangıç davranışı, menü çubuğu ve yenileme tercihleri. Değişiklikler hemen uygulanır.")
+            PageHeader(symbol: "gearshape.fill", tint: .gray, title: L("Ayarlar"),
+                       summary: L("Başlangıç davranışı, menü çubuğu ve yenileme tercihleri. Değişiklikler hemen uygulanır."))
 
             ScrollView {
                 VStack(spacing: 16) {
-                    SettingsSection(title: "Genel") {
-                        SettingRow(title: "Oturum açıldığında başlat", detail: launchDetail) {
+                    SettingsSection(title: L("Genel")) {
+                        SettingRow(title: L("Oturum açıldığında başlat"), detail: launchDetail) {
                             Toggle("", isOn: Binding(get: { launch.isEnabled }, set: { launch.set($0) }))
                                 .labelsHidden().toggleStyle(.switch)
                         }
                         if launch.status == .requiresApproval {
-                            SettingNotice(text: "macOS onayınızı bekliyor: Sistem Ayarları → Genel → Giriş Öğeleri'nde DiskSweep'i açın.",
-                                          buttonTitle: "Giriş Öğeleri'ni Aç") { launch.openSystemSettings() }
+                            SettingNotice(text: L("macOS onayınızı bekliyor: Sistem Ayarları → Genel → Giriş Öğeleri'nde DiskSweep'i açın."),
+                                          buttonTitle: L("Giriş Öğeleri'ni Aç")) { launch.openSystemSettings() }
                         }
                         if let error = launch.errorMessage {
                             SettingNotice(text: error, tint: .red)
                         }
                         if launch.isEnabled && !launch.isInApplicationsFolder {
-                            SettingNotice(text: "Uygulama Uygulamalar klasöründe değil. Başlangıçta açılması için DiskSweep'i oraya taşıyıp ayarı yeniden açın.")
+                            SettingNotice(text: L("Uygulama Uygulamalar klasöründe değil. Başlangıçta açılması için DiskSweep'i oraya taşıyıp ayarı yeniden açın."))
                         }
-                        SettingRow(title: "Açılışta ana pencereyi göster",
-                                   detail: "Kapalıyken DiskSweep yalnızca menü çubuğunda başlar.") {
+                        SettingRow(title: L("Açılışta ana pencereyi göster"),
+                                   detail: L("Kapalıyken DiskSweep yalnızca menü çubuğunda başlar.")) {
                             Toggle("", isOn: $showWindowAtLaunch).labelsHidden().toggleStyle(.switch)
                         }
-                        SettingRow(title: "Sayfaları otomatik yenile",
-                                   detail: "Açık sayfa yaklaşık 30 saniyede bir, eskiyen sayfalar uygulamaya dönünce taranır.") {
+                        SettingRow(title: L("Sayfaları otomatik yenile"),
+                                   detail: L("Açık sayfa yaklaşık 30 saniyede bir, eskiyen sayfalar uygulamaya dönünce taranır.")) {
                             Toggle("", isOn: $autoRefresh).labelsHidden().toggleStyle(.switch)
                         }
                     }
 
-                    SettingsSection(title: "Menü çubuğu") {
-                        SettingRow(title: "İşlemci (CPU)") { Toggle("", isOn: $showCPU).labelsHidden().toggleStyle(.switch) }
-                        SettingRow(title: "Bellek (RAM)") { Toggle("", isOn: $showMemory).labelsHidden().toggleStyle(.switch) }
+                    SettingsSection(title: L("Menü çubuğu")) {
+                        SettingRow(title: L("İşlemci (CPU)")) { Toggle("", isOn: $showCPU).labelsHidden().toggleStyle(.switch) }
+                        SettingRow(title: L("Bellek (RAM)")) { Toggle("", isOn: $showMemory).labelsHidden().toggleStyle(.switch) }
                         SettingRow(title: "Disk") { Toggle("", isOn: $showDisk).labelsHidden().toggleStyle(.switch) }
-                        SettingRow(title: "Ağ") { Toggle("", isOn: $showNetwork).labelsHidden().toggleStyle(.switch) }
-                        SettingRow(title: "Mini grafikleri göster",
-                                   detail: "Kapalıyken menü çubuğunda yalnızca yazılar görünür.") {
+                        SettingRow(title: L("Ağ")) { Toggle("", isOn: $showNetwork).labelsHidden().toggleStyle(.switch) }
+                        SettingRow(title: L("Mini grafikleri göster"),
+                                   detail: L("Kapalıyken menü çubuğunda yalnızca yazılar görünür.")) {
                             Toggle("", isOn: $showGraphs).labelsHidden().toggleStyle(.switch)
                         }
-                        SettingRow(title: "Güncelleme sıklığı",
-                                   detail: "Daha sık güncelleme biraz daha fazla işlemci kullanır.") {
+                        SettingRow(title: L("Güncelleme sıklığı"),
+                                   detail: L("Daha sık güncelleme biraz daha fazla işlemci kullanır.")) {
                             Picker("", selection: $interval) {
-                                Text("1 sn").tag(1.0)
-                                Text("2 sn").tag(2.0)
-                                Text("5 sn").tag(5.0)
+                                Text(L("1 sn")).tag(1.0)
+                                Text(L("2 sn")).tag(2.0)
+                                Text(L("5 sn")).tag(5.0)
                             }
                             .labelsHidden()
                             .pickerStyle(.segmented)
@@ -130,22 +130,22 @@ struct SettingsPage: View {
                         }
                     }
 
-                    SettingsSection(title: "Temizlik") {
-                        SettingRow(title: "Dışlanan klasörler",
+                    SettingsSection(title: L("Temizlik")) {
+                        SettingRow(title: L("Dışlanan klasörler"),
                                    detail: store.excludedFolders.isEmpty
-                                       ? "Hiç klasör dışlanmadı."
-                                       : "\(store.excludedFolders.count) klasörde hiçbir işlem yapılmaz.") {
-                            Button("Yönet…") { store.showExclusions = true }
+                                       ? L("Hiç klasör dışlanmadı.")
+                                       : L("\(store.excludedFolders.count) klasörde hiçbir işlem yapılmaz.")) {
+                            Button(L("Yönet…")) { store.showExclusions = true }
                         }
                     }
 
-                    SettingsSection(title: "Hakkında") {
+                    SettingsSection(title: L("Hakkında")) {
                         HStack(spacing: 14) {
                             Image(nsImage: NSApp.applicationIconImage)
                                 .resizable().frame(width: 52, height: 52)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("DiskSweep").font(.headline)
-                                Text("Sürüm \(Self.version)").font(.callout).foregroundStyle(.secondary)
+                                Text(L("Sürüm \(Self.version)")).font(.callout).foregroundStyle(.secondary)
                             }
                             Spacer()
                         }
@@ -162,10 +162,10 @@ struct SettingsPage: View {
 
     private var launchDetail: String {
         switch launch.status {
-        case .enabled: return "Mac'e giriş yaptığında DiskSweep otomatik açılır."
-        case .requiresApproval: return "İstendi; macOS'un onayı bekleniyor."
+        case .enabled: return L("Mac'e giriş yaptığında DiskSweep otomatik açılır.")
+        case .requiresApproval: return L("İstendi; macOS'un onayı bekleniyor.")
         // `notFound` is what macOS reports for an app that was never registered as a login item.
-        case .notFound, .notRegistered: return "Kapalı. Açarsan menü çubuğu okumaları her açılışta hazır olur."
+        case .notFound, .notRegistered: return L("Kapalı. Açarsan menü çubuğu okumaları her açılışta hazır olur.")
         @unknown default: return ""
         }
     }

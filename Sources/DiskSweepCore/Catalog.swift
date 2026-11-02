@@ -5,11 +5,11 @@ public enum CategoryGroup: String, CaseIterable, Sendable {
 
     public var title: String {
         switch self {
-        case .xcode: return "Xcode ve Simülatör"
+        case .xcode: return L("Xcode ve Simülatör")
         case .docker: return "Docker"
-        case .packageCaches: return "Paket Önbellekleri"
-        case .projects: return "Projeler (~/Developer)"
-        case .system: return "Sistem ve Uygulamalar"
+        case .packageCaches: return L("Paket Önbellekleri")
+        case .projects: return L("Projeler (~/Developer)")
+        case .system: return L("Sistem ve Uygulamalar")
         }
     }
 }
@@ -50,63 +50,63 @@ public enum Catalog {
     public static let all: [CleanupCategory] = [
         CleanupCategory(
             id: "xcode-derived", title: "DerivedData", symbol: "hammer", group: .xcode,
-            summary: "Xcode'un derleme çıktıları. Silinince bir sonraki derlemede otomatik yeniden oluşur (ilk derleme yavaşlar). Kaynak kodunuza dokunmaz.",
+            summary: L("Xcode'un derleme çıktıları. Silinince bir sonraki derlemede otomatik yeniden oluşur (ilk derleme yavaşlar). Kaynak kodunuza dokunmaz."),
             scanner: Scanners.derivedData),
         CleanupCategory(
-            id: "xcode-device-support", title: "Cihaz Destek Dosyaları", symbol: "iphone", group: .xcode,
-            summary: "Fiziksel cihaz bağlayınca Xcode'un indirdiği sembol dosyaları. Cihazı tekrar bağlayınca yeniden indirilir.",
+            id: "xcode-device-support", title: L("Cihaz Destek Dosyaları"), symbol: "iphone", group: .xcode,
+            summary: L("Fiziksel cihaz bağlayınca Xcode'un indirdiği sembol dosyaları. Cihazı tekrar bağlayınca yeniden indirilir."),
             scanner: Scanners.deviceSupport),
         CleanupCategory(
-            id: "xcode-archives", title: "Arşivler", symbol: "archivebox", group: .xcode,
-            summary: "Dağıtım arşivleri ve dSYM dosyaları. Yayınladığınız sürümlerin crash raporlarını çözmek için gerekebilir; bu yüzden Çöp Kutusu'na taşınır.",
+            id: "xcode-archives", title: L("Arşivler"), symbol: "archivebox", group: .xcode,
+            summary: L("Dağıtım arşivleri ve dSYM dosyaları. Yayınladığınız sürümlerin crash raporlarını çözmek için gerekebilir; bu yüzden Çöp Kutusu'na taşınır."),
             scanner: Scanners.archives),
         CleanupCategory(
-            id: "xcode-caches", title: "Xcode Önbellekleri", symbol: "internaldrive", group: .xcode,
-            summary: "Dokümantasyon ve simülatör önbellekleri. Otomatik yeniden oluşur.",
+            id: "xcode-caches", title: L("Xcode Önbellekleri"), symbol: "internaldrive", group: .xcode,
+            summary: L("Dokümantasyon ve simülatör önbellekleri. Otomatik yeniden oluşur."),
             scanner: Scanners.xcodeCaches),
         CleanupCategory(
-            id: "sim-devices", title: "Simülatörler", symbol: "ipad.and.iphone", group: .xcode,
-            summary: "Simülatör cihazları ve içindeki uygulama verileri. Silinen cihaz Xcode'dan yeniden oluşturulabilir; içindeki test verileri kaybolur.",
+            id: "sim-devices", title: L("Simülatörler"), symbol: "ipad.and.iphone", group: .xcode,
+            summary: L("Simülatör cihazları ve içindeki uygulama verileri. Silinen cihaz Xcode'dan yeniden oluşturulabilir; içindeki test verileri kaybolur."),
             scanner: Scanners.simulatorDevices),
         CleanupCategory(
-            id: "sim-runtimes", title: "Simülatör Runtime'ları", symbol: "square.stack.3d.up", group: .xcode,
-            summary: "iOS/watchOS/tvOS simülatör sistemleri (genelde 5-9 GB). Xcode → Settings → Components'tan yeniden indirilebilir.",
+            id: "sim-runtimes", title: L("Simülatör Runtime'ları"), symbol: "square.stack.3d.up", group: .xcode,
+            summary: L("iOS/watchOS/tvOS simülatör sistemleri (genelde 5-9 GB). Xcode → Settings → Components'tan yeniden indirilebilir."),
             scanner: Scanners.simulatorRuntimes),
 
         CleanupCategory(
             id: "docker", title: "Docker", symbol: "shippingbox", group: .docker,
-            summary: "Docker'ın kullanılmayan verileri. Volume'ler (veritabanı vb.) asla silinmez. Docker Desktop açık olmalı.",
+            summary: L("Docker'ın kullanılmayan verileri. Volume'ler (veritabanı vb.) asla silinmez. Docker Desktop açık olmalı."),
             scanner: Scanners.docker),
 
         CleanupCategory(
-            id: "pkg-caches", title: "Paket Yöneticileri", symbol: "cube", group: .packageCaches,
-            summary: "npm, bun, cargo, gradle ve pnpm önbellekleri. Sonraki kurulumda gerekirse yeniden indirilir; projeleriniz bozulmaz.",
+            id: "pkg-caches", title: L("Paket Yöneticileri"), symbol: "cube", group: .packageCaches,
+            summary: L("npm, bun, cargo, gradle ve pnpm önbellekleri. Sonraki kurulumda gerekirse yeniden indirilir; projeleriniz bozulmaz."),
             scanner: Scanners.packageCaches),
         CleanupCategory(
             id: "dot-cache", title: "~/.cache", symbol: "folder", group: .packageCaches,
-            summary: "Araçların önbellek klasörleri. Bazıları büyük modeller içerebilir (ör. huggingface) ve yeniden indirmek uzun sürebilir.",
+            summary: L("Araçların önbellek klasörleri. Bazıları büyük modeller içerebilir (ör. huggingface) ve yeniden indirmek uzun sürebilir."),
             scanner: Scanners.dotCache),
 
         CleanupCategory(
-            id: "projects", title: "Proje Artıkları", symbol: "folder.badge.gearshape", group: .projects,
-            summary: "~/Developer altındaki node_modules, .next, .build, target, Pods gibi yeniden üretilebilir klasörler. Yalnızca git'te ignore edilenler \"Güvenli\" sayılır.",
+            id: "projects", title: L("Proje Artıkları"), symbol: "folder.badge.gearshape", group: .projects,
+            summary: L("~/Developer altındaki node_modules, .next, .build, target, Pods gibi yeniden üretilebilir klasörler. Yalnızca git'te ignore edilenler \"Güvenli\" sayılır."),
             scanner: Scanners.projectArtifacts),
 
         CleanupCategory(
-            id: "app-caches", title: "Uygulama Önbellekleri", symbol: "internaldrive", group: .system,
-            summary: "~/Library/Caches altındaki uygulama önbellekleri. Uygulamalar gerekince yeniden üretir. Açık uygulamaların önbelleği \"Dikkat\" olarak işaretlenir.",
+            id: "app-caches", title: L("Uygulama Önbellekleri"), symbol: "internaldrive", group: .system,
+            summary: L("~/Library/Caches altındaki uygulama önbellekleri. Uygulamalar gerekince yeniden üretir. Açık uygulamaların önbelleği \"Dikkat\" olarak işaretlenir."),
             scanner: Scanners.appCaches),
         CleanupCategory(
-            id: "logs", title: "Kayıtlar (Logs)", symbol: "doc.plaintext", group: .system,
-            summary: "~/Library/Logs altındaki günlük ve çökme raporları.",
+            id: "logs", title: L("Kayıtlar (Logs)"), symbol: "doc.plaintext", group: .system,
+            summary: L("~/Library/Logs altındaki günlük ve çökme raporları."),
             scanner: Scanners.logs),
         CleanupCategory(
-            id: "trash", title: "Çöp Kutusu", symbol: "trash", group: .system,
-            summary: "Zaten sildiğiniz ama yer kaplamaya devam eden dosyalar.",
+            id: "trash", title: L("Çöp Kutusu"), symbol: "trash", group: .system,
+            summary: L("Zaten sildiğiniz ama yer kaplamaya devam eden dosyalar."),
             scanner: Scanners.trash),
         CleanupCategory(
-            id: "ios-backups", title: "iPhone/iPad Yedekleri", symbol: "externaldrive", group: .system,
-            summary: "Mac'e alınmış cihaz yedekleri. Geri getirilemez olabilir; bu yüzden Çöp Kutusu'na taşınır.",
+            id: "ios-backups", title: L("iPhone/iPad Yedekleri"), symbol: "externaldrive", group: .system,
+            summary: L("Mac'e alınmış cihaz yedekleri. Geri getirilemez olabilir; bu yüzden Çöp Kutusu'na taşınır."),
             scanner: Scanners.iosBackups),
     ]
 }
@@ -117,7 +117,7 @@ enum Scan {
     static let junkNames: Set<String> = [".DS_Store", ".localized", ".com.apple.timemachine.donotpresent"]
 
     static let fullDiskAccessNote =
-        "Erişim reddedildi. Sistem Ayarları → Gizlilik ve Güvenlik → Tam Disk Erişimi'ne DiskSweep'i ekleyip uygulamayı yeniden başlatın."
+        L("Erişim reddedildi. Sistem Ayarları → Gizlilik ve Güvenlik → Tam Disk Erişimi'ne DiskSweep'i ekleyip uygulamayı yeniden başlatın.")
 
     struct Entry: Sendable {
         let url: URL
@@ -179,11 +179,11 @@ enum Scanners {
         let dir = ctx.home.appendingPathComponent("Library/Developer/Xcode/DerivedData")
         var outcome = await Scan.childrenOutcome(categoryID: "xcode-derived", directory: dir, ctx: ctx) { url in
             Scan.Entry(url: url, title: stripDerivedDataHash(url.lastPathComponent),
-                       detail: "Derleme çıktısı — yeniden derlemede otomatik oluşur",
+                       detail: L("Derleme çıktısı — yeniden derlemede otomatik oluşur"),
                        safety: .safe, mode: .permanent)
         }
         if ctx.runningBundleIDs.contains("com.apple.dt.Xcode") {
-            outcome.note = "Xcode şu an açık. Açık projelerin DerivedData'sını silmek bir sonraki derlemeyi uzatır; mümkünse Xcode'u kapatın."
+            outcome.note = L("Xcode şu an açık. Açık projelerin DerivedData'sını silmek bir sonraki derlemeyi uzatır; mümkünse Xcode'u kapatın.")
         }
         return outcome
     }
@@ -195,7 +195,7 @@ enum Scanners {
             for url in Scan.children(of: dir).urls {
                 entries.append(Scan.Entry(
                     url: url, title: "\(platform) · \(url.lastPathComponent)",
-                    detail: "Cihaz bağlanınca yeniden indirilir", safety: .safe, mode: .permanent))
+                    detail: L("Cihaz bağlanınca yeniden indirilir"), safety: .safe, mode: .permanent))
             }
         }
         return ScanOutcome(items: await Scan.buildItems(categoryID: "xcode-device-support", entries: entries, ctx: ctx))
@@ -205,7 +205,7 @@ enum Scanners {
         let dir = ctx.home.appendingPathComponent("Library/Developer/Xcode/Archives")
         return await Scan.childrenOutcome(categoryID: "xcode-archives", directory: dir, ctx: ctx) { url in
             Scan.Entry(url: url, title: url.lastPathComponent,
-                       detail: "Yayın arşivleri ve dSYM'ler — Çöp Kutusu'na taşınır",
+                       detail: L("Yayın arşivleri ve dSYM'ler — Çöp Kutusu'na taşınır"),
                        safety: .caution, mode: .trash)
         }
     }
@@ -213,10 +213,10 @@ enum Scanners {
     @Sendable static func xcodeCaches(_ ctx: ScanContext) async -> ScanOutcome {
         let entries = [
             Scan.Entry(url: ctx.home.appendingPathComponent("Library/Developer/Xcode/DocumentationCache"),
-                       title: "Dokümantasyon önbelleği", detail: "Xcode yeniden oluşturur",
+                       title: L("Dokümantasyon önbelleği"), detail: L("Xcode yeniden oluşturur"),
                        safety: .safe, mode: .permanent),
             Scan.Entry(url: ctx.home.appendingPathComponent("Library/Developer/CoreSimulator/Caches"),
-                       title: "Simülatör önbelleği", detail: "Simülatör yeniden oluşturur",
+                       title: L("Simülatör önbelleği"), detail: L("Simülatör yeniden oluşturur"),
                        safety: .safe, mode: .permanent),
         ]
         return ScanOutcome(items: await Scan.buildItems(categoryID: "xcode-caches", entries: entries, ctx: ctx))
@@ -227,7 +227,7 @@ enum Scanners {
         guard result.succeeded,
               let json = try? JSONSerialization.jsonObject(with: Data(result.stdout.utf8)) as? [String: Any],
               let byRuntime = json["devices"] as? [String: [[String: Any]]] else {
-            return ScanOutcome(note: "simctl okunamadı (Xcode kurulu mu?)")
+            return ScanOutcome(note: L("simctl okunamadı (Xcode kurulu mu?)"))
         }
 
         let devicesRoot = ctx.home.appendingPathComponent("Library/Developer/CoreSimulator/Devices")
@@ -258,7 +258,7 @@ enum Scanners {
                 guard size >= minimumSize else { continue }
                 items.append(CleanupItem(
                     id: "sim-devices|\(udidText)", categoryID: "sim-devices",
-                    title: name, detail: booted ? "\(runtimeName) · Şu an çalışıyor" : "\(runtimeName) · uygulama verileri silinir",
+                    title: name, detail: booted ? L("\(runtimeName) · Şu an çalışıyor") : L("\(runtimeName) · uygulama verileri silinir"),
                     size: size, safety: booted ? .protected : .caution,
                     action: booted ? .informational : .run(.simctlDeleteDevice(udid))))
             }
@@ -268,18 +268,18 @@ enum Scanners {
         if unavailableCount > 0 {
             items.insert(CleanupItem(
                 id: "sim-devices|unavailable", categoryID: "sim-devices",
-                title: "Kullanılamayan simülatörler (\(unavailableCount))",
-                detail: "Silinmiş runtime'lara ait artık cihazlar", size: unavailableBytes,
+                title: L("Kullanılamayan simülatörler (\(unavailableCount))"),
+                detail: L("Silinmiş runtime'lara ait artık cihazlar"), size: unavailableBytes,
                 safety: .safe, action: .run(.simctlDeleteUnavailable)), at: 0)
         }
-        return ScanOutcome(items: items, note: "50 MB'tan küçük simülatörler gizlendi.")
+        return ScanOutcome(items: items, note: L("50 MB'tan küçük simülatörler gizlendi."))
     }
 
     @Sendable static func simulatorRuntimes(_ ctx: ScanContext) async -> ScanOutcome {
         let result = await Shell.run(executable: "/usr/bin/xcrun", arguments: ["simctl", "runtime", "list", "-j"], timeout: 30)
         guard result.succeeded,
               let json = try? JSONSerialization.jsonObject(with: Data(result.stdout.utf8)) as? [String: [String: Any]] else {
-            return ScanOutcome(note: "Runtime listesi okunamadı.")
+            return ScanOutcome(note: L("Runtime listesi okunamadı."))
         }
         let isoParser = ISO8601DateFormatter()
         var items: [CleanupItem] = []
@@ -292,7 +292,7 @@ enum Scanners {
             items.append(CleanupItem(
                 id: "sim-runtimes|\(idText)", categoryID: "sim-runtimes",
                 title: "\(readableRuntimeName(identifier)) (\(build))",
-                detail: "Yeniden indirilebilir. Bu runtime'ı kullanan simülatörler kullanılamaz hale gelir.",
+                detail: L("Yeniden indirilebilir. Bu runtime'ı kullanan simülatörler kullanılamaz hale gelir."),
                 size: size, safety: .caution, action: .run(.simctlDeleteRuntime(id)), modified: lastUsed))
         }
         items.sort { ($0.size ?? 0) > ($1.size ?? 0) }
@@ -311,8 +311,8 @@ enum Scanners {
             let raw = dir.appendingPathComponent("data/Docker.raw")
             guard FileManager.default.fileExists(atPath: raw.path) else { continue }
             items.append(CleanupItem(
-                id: "docker|raw", categoryID: "docker", title: "Docker disk imajı (Docker.raw)",
-                detail: "Docker'ın tüm verisi burada. Asla silinmez. Küçültmek için aşağıdaki temizliği çalıştırın; gerekirse Docker Desktop → Settings → Resources'tan disk boyutunu azaltın.",
+                id: "docker|raw", categoryID: "docker", title: L("Docker disk imajı (Docker.raw)"),
+                detail: L("Docker'ın tüm verisi burada. Asla silinmez. Küçültmek için aşağıdaki temizliği çalıştırın; gerekirse Docker Desktop → Settings → Resources'tan disk boyutunu azaltın."),
                 size: SizeCalculator.allocatedSize(of: raw), safety: .protected, action: .informational))
         }
 
@@ -320,7 +320,7 @@ enum Scanners {
         guard probe.succeeded else {
             return ScanOutcome(items: items, note: denied
                 ? Scan.fullDiskAccessNote
-                : "Docker çalışmıyor veya kurulu değil. Temizlik için Docker Desktop'ı açın.")
+                : L("Docker çalışmıyor veya kurulu değil. Temizlik için Docker Desktop'ı açın."))
         }
 
         let df = await Shell.shell("docker system df --format '{{json .}}'", timeout: 60)
@@ -334,22 +334,22 @@ enum Scanners {
             case "Build Cache" where reclaimable > 0:
                 items.append(CleanupItem(
                     id: "docker|build-cache", categoryID: "docker", title: "Build cache",
-                    detail: "Derleme önbelleği — sonraki build'ler biraz yavaşlar", size: reclaimable,
+                    detail: L("Derleme önbelleği — sonraki build'ler biraz yavaşlar"), size: reclaimable,
                     safety: .safe, action: .run(.dockerBuilderPrune)))
             case "Images" where reclaimable > 0:
                 items.append(CleanupItem(
-                    id: "docker|images", categoryID: "docker", title: "Kullanılmayan imajlar",
-                    detail: "Hiçbir container'ın kullanmadığı imajlar — gerekince yeniden çekilir", size: reclaimable,
+                    id: "docker|images", categoryID: "docker", title: L("Kullanılmayan imajlar"),
+                    detail: L("Hiçbir container'ın kullanmadığı imajlar — gerekince yeniden çekilir"), size: reclaimable,
                     safety: .caution, action: .run(.dockerImagePruneAll)))
             case "Containers" where reclaimable > 0:
                 items.append(CleanupItem(
-                    id: "docker|containers", categoryID: "docker", title: "Durdurulmuş container'lar",
-                    detail: "Container içindeki (volume dışı) veriler kaybolur", size: reclaimable,
+                    id: "docker|containers", categoryID: "docker", title: L("Durdurulmuş container'lar"),
+                    detail: L("Container içindeki (volume dışı) veriler kaybolur"), size: reclaimable,
                     safety: .caution, action: .run(.dockerContainerPrune)))
             case "Local Volumes" where total > 0:
                 items.append(CleanupItem(
-                    id: "docker|volumes", categoryID: "docker", title: "Volume'ler",
-                    detail: "Veritabanı gibi kalıcı veri içerebilir. Güvenlik için bu uygulamadan silinemez.",
+                    id: "docker|volumes", categoryID: "docker", title: L("Volume'ler"),
+                    detail: L("Veritabanı gibi kalıcı veri içerebilir. Güvenlik için bu uygulamadan silinemez."),
                     size: total, safety: .protected, action: .informational))
             default:
                 break
@@ -363,14 +363,14 @@ enum Scanners {
     @Sendable static func packageCaches(_ ctx: ScanContext) async -> ScanOutcome {
         let home = ctx.home
         let entries = [
-            Scan.Entry(url: home.appendingPathComponent(".npm/_cacache"), title: "npm önbelleği",
-                       detail: "Paketler gerekince yeniden indirilir", safety: .safe, mode: .permanent),
-            Scan.Entry(url: home.appendingPathComponent(".bun/install/cache"), title: "bun önbelleği",
-                       detail: "Paketler gerekince yeniden indirilir", safety: .safe, mode: .permanent),
-            Scan.Entry(url: home.appendingPathComponent(".cargo/registry/cache"), title: "cargo önbelleği",
-                       detail: "Crate'ler gerekince yeniden indirilir (ağ gerekir)", safety: .caution, mode: .permanent),
-            Scan.Entry(url: home.appendingPathComponent(".gradle/caches"), title: "Gradle önbelleği",
-                       detail: "Bağımlılıklar yeniden indirilir; ilk build uzun sürer", safety: .caution, mode: .permanent),
+            Scan.Entry(url: home.appendingPathComponent(".npm/_cacache"), title: L("npm önbelleği"),
+                       detail: L("Paketler gerekince yeniden indirilir"), safety: .safe, mode: .permanent),
+            Scan.Entry(url: home.appendingPathComponent(".bun/install/cache"), title: L("bun önbelleği"),
+                       detail: L("Paketler gerekince yeniden indirilir"), safety: .safe, mode: .permanent),
+            Scan.Entry(url: home.appendingPathComponent(".cargo/registry/cache"), title: L("cargo önbelleği"),
+                       detail: L("Crate'ler gerekince yeniden indirilir (ağ gerekir)"), safety: .caution, mode: .permanent),
+            Scan.Entry(url: home.appendingPathComponent(".gradle/caches"), title: L("Gradle önbelleği"),
+                       detail: L("Bağımlılıklar yeniden indirilir; ilk build uzun sürer"), safety: .caution, mode: .permanent),
         ]
         var items = await Scan.buildItems(categoryID: "pkg-caches", entries: entries, ctx: ctx)
 
@@ -379,8 +379,8 @@ enum Scanners {
         if FileManager.default.fileExists(atPath: pnpmStore.path) {
             let total = SizeCalculator.allocatedSize(of: pnpmStore)
             items.append(CleanupItem(
-                id: "pkg-caches|pnpm", categoryID: "pkg-caches", title: "pnpm store (kullanılmayan paketler)",
-                detail: "`pnpm store prune`: yalnızca hiçbir projenin kullanmadığı paketleri siler. Store toplamı \(Format.bytes(total)); kazanç değişken.",
+                id: "pkg-caches|pnpm", categoryID: "pkg-caches", title: L("pnpm store (kullanılmayan paketler)"),
+                detail: L("`pnpm store prune`: yalnızca hiçbir projenin kullanmadığı paketleri siler. Store toplamı \(Format.bytes(total)); kazanç değişken."),
                 size: nil, safety: .safe, action: .run(.pnpmStorePrune)))
         }
         return ScanOutcome(items: items)
@@ -391,7 +391,7 @@ enum Scanners {
             categoryID: "dot-cache", directory: ctx.home.appendingPathComponent(".cache"), ctx: ctx
         ) { url in
             Scan.Entry(url: url, title: url.lastPathComponent,
-                       detail: "Araç önbelleği — yeniden indirme/üretme gerekebilir",
+                       detail: L("Araç önbelleği — yeniden indirme/üretme gerekebilir"),
                        safety: .caution, mode: .permanent)
         }
     }
@@ -415,7 +415,7 @@ enum Scanners {
                 safety: verdict.safety, mode: verdict.mode))
         }
         let items = await Scan.buildItems(categoryID: "projects", entries: entries, ctx: ctx, minimumSize: 1_000_000)
-        return ScanOutcome(items: items, note: items.isEmpty ? nil : "1 MB'tan küçük klasörler gizlendi.")
+        return ScanOutcome(items: items, note: items.isEmpty ? nil : L("1 MB'tan küçük klasörler gizlendi."))
     }
 
     /// Caches that hold tools which must be re-installed by hand after removal.
@@ -468,7 +468,7 @@ enum Scanners {
 
         if ProjectArtifacts.virtualEnvNames.contains(name) {
             return ArtifactVerdict(safety: .caution, mode: .trash,
-                                   reason: "Python sanal ortamı — Çöp Kutusu'na taşınır")
+                                   reason: L("Python sanal ortamı — Çöp Kutusu'na taşınır"))
         }
 
         // The repository may be someone else's clone, and git reads its .git/config.
@@ -485,16 +485,16 @@ enum Scanners {
         if name == "node_modules" {
             let hasLock = lockfiles.contains { FileManager.default.fileExists(atPath: parent.appendingPathComponent($0).path) }
             if ignored == true && hasLock {
-                return ArtifactVerdict(safety: .safe, mode: .permanent, reason: "lockfile var, git'te ignore — kurulumla geri gelir")
+                return ArtifactVerdict(safety: .safe, mode: .permanent, reason: L("lockfile var, git'te ignore — kurulumla geri gelir"))
             }
-            let why = !hasLock ? "lockfile yok" : (ignored == nil ? "git deposu değil" : "git'te ignore edilmemiş")
-            return ArtifactVerdict(safety: .caution, mode: .trash, reason: "\(why) — Çöp Kutusu'na taşınır")
+            let why = !hasLock ? L("lockfile yok") : (ignored == nil ? L("git deposu değil") : L("git'te ignore edilmemiş"))
+            return ArtifactVerdict(safety: .caution, mode: .trash, reason: L("\(why) — Çöp Kutusu'na taşınır"))
         }
         if ignored == true {
-            return ArtifactVerdict(safety: .safe, mode: .permanent, reason: "git'te ignore — yeniden üretilir")
+            return ArtifactVerdict(safety: .safe, mode: .permanent, reason: L("git'te ignore — yeniden üretilir"))
         }
-        let why = ignored == nil ? "git deposu değil" : "git'te ignore edilmemiş (takipli dosya olabilir)"
-        return ArtifactVerdict(safety: .caution, mode: .trash, reason: "\(why) — Çöp Kutusu'na taşınır")
+        let why = ignored == nil ? L("git deposu değil") : L("git'te ignore edilmemiş (takipli dosya olabilir)")
+        return ArtifactVerdict(safety: .caution, mode: .trash, reason: L("\(why) — Çöp Kutusu'na taşınır"))
     }
 
     // MARK: System
@@ -505,15 +505,15 @@ enum Scanners {
             let name = url.lastPathComponent
             if name.hasPrefix("com.apple."), name != "com.apple.dt.Xcode" { return nil }
             if ctx.runningBundleIDs.contains(name) {
-                return Scan.Entry(url: url, title: name, detail: "Uygulama şu an açık — önce kapatın",
+                return Scan.Entry(url: url, title: name, detail: L("Uygulama şu an açık — önce kapatın"),
                                   safety: .caution, mode: .permanent)
             }
             if browserBinaryCaches.contains(name) {
                 return Scan.Entry(url: url, title: name,
-                                  detail: "Tarayıcı binary'leri — silinirse ilgili araç (ör. `playwright install`) yeniden kurulana kadar testler çalışmaz",
+                                  detail: L("Tarayıcı binary'leri — silinirse ilgili araç (ör. `playwright install`) yeniden kurulana kadar testler çalışmaz"),
                                   safety: .caution, mode: .permanent)
             }
-            return Scan.Entry(url: url, title: name, detail: "Uygulama gerekince yeniden üretir",
+            return Scan.Entry(url: url, title: name, detail: L("Uygulama gerekince yeniden üretir"),
                               safety: .safe, mode: .permanent)
         }
     }
@@ -522,7 +522,7 @@ enum Scanners {
         await Scan.childrenOutcome(
             categoryID: "logs", directory: ctx.home.appendingPathComponent("Library/Logs"), ctx: ctx
         ) { url in
-            Scan.Entry(url: url, title: url.lastPathComponent, detail: "Günlük / çökme raporu",
+            Scan.Entry(url: url, title: url.lastPathComponent, detail: L("Günlük / çökme raporu"),
                        safety: .safe, mode: .permanent)
         }
     }
@@ -531,7 +531,7 @@ enum Scanners {
         await Scan.childrenOutcome(
             categoryID: "trash", directory: ctx.home.appendingPathComponent(".Trash"), ctx: ctx
         ) { url in
-            Scan.Entry(url: url, title: url.lastPathComponent, detail: "Çöp Kutusu'nda — kalıcı olarak silinir",
+            Scan.Entry(url: url, title: url.lastPathComponent, detail: L("Çöp Kutusu'nda — kalıcı olarak silinir"),
                        safety: .safe, mode: .permanent)
         }
     }
@@ -540,13 +540,13 @@ enum Scanners {
         let dir = ctx.home.appendingPathComponent("Library/Application Support/MobileSync/Backup")
         return await Scan.childrenOutcome(categoryID: "ios-backups", directory: dir, ctx: ctx) { url in
             var title = url.lastPathComponent
-            var detail = "Cihaz yedeği — Çöp Kutusu'na taşınır"
+            var detail = L("Cihaz yedeği — Çöp Kutusu'na taşınır")
             let plist = url.appendingPathComponent("Info.plist")
             if let data = try? Data(contentsOf: plist),
                let info = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any] {
                 if let device = info["Device Name"] as? String { title = device }
                 if let date = info["Last Backup Date"] as? Date {
-                    detail = "Son yedek: \(date.formatted(date: .abbreviated, time: .omitted)) — Çöp Kutusu'na taşınır"
+                    detail = L("Son yedek: \(date.formatted(date: .abbreviated, time: .omitted)) — Çöp Kutusu'na taşınır")
                 }
             }
             return Scan.Entry(url: url, title: title, detail: detail, safety: .caution, mode: .trash)
@@ -578,9 +578,9 @@ public enum Format {
 
     /// Turkish relative time ("3 dakika önce"); "az önce" for the last few seconds.
     public static func relative(_ date: Date, now: Date = Date()) -> String {
-        if now.timeIntervalSince(date) < 5 { return "az önce" }
+        if now.timeIntervalSince(date) < 5 { return L("az önce") }
         let formatter = RelativeDateTimeFormatter()
-        formatter.locale = Locale(identifier: "tr_TR")
+        formatter.locale = Locale(identifier: Bundle.main.preferredLocalizations.first ?? "en")
         formatter.unitsStyle = .full
         return formatter.localizedString(for: date, relativeTo: now)
     }

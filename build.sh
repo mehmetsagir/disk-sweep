@@ -13,6 +13,7 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp .build/release/DiskSweep "$APP/Contents/MacOS/DiskSweep"
 cp Support/Info.plist "$APP/Contents/Info.plist"
 cp Support/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+cp -R Support/Localization/*.lproj "$APP/Contents/Resources/"
 
 IDENTITY="${SIGN_IDENTITY:--}"
 if [[ "$IDENTITY" == "-" ]]; then

@@ -18,28 +18,28 @@ struct ConfirmSheet: View {
             HStack(spacing: 14) {
                 IconTile(symbol: "trash.fill", tint: .red, size: 44)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Silmeyi onayla").font(.system(size: 22, weight: .bold, design: .rounded))
-                    Text("\(items.count) öğe seçildi").foregroundStyle(.secondary)
+                    Text(L("Silmeyi onayla")).font(.system(size: 22, weight: .bold, design: .rounded))
+                    Text(L("\(items.count) öğe seçildi")).foregroundStyle(.secondary)
                 }
                 Spacer()
                 VStack(alignment: .trailing, spacing: 0) {
                     Text(Format.bytes(store.selectedBytes))
                         .font(.system(size: 28, weight: .bold, design: .rounded))
-                    Text("boşalacak (tahmini)").font(.caption).foregroundStyle(.secondary)
+                    Text(L("boşalacak (tahmini)")).font(.caption).foregroundStyle(.secondary)
                 }
             }
 
             ScrollView {
                 VStack(spacing: 10) {
-                    GroupCard(title: "Kalıcı olarak silinecek", symbol: "flame.fill", color: .red, items: permanent)
-                    GroupCard(title: "Çöp Kutusu'na taşınacak (geri alınabilir)", symbol: "trash", color: .orange, items: trash)
-                    GroupCard(title: "Araçla temizlenecek (docker / simctl / pnpm)", symbol: "terminal.fill", color: .blue, items: commands)
+                    GroupCard(title: L("Kalıcı olarak silinecek"), symbol: "flame.fill", color: .red, items: permanent)
+                    GroupCard(title: L("Çöp Kutusu'na taşınacak (geri alınabilir)"), symbol: "trash", color: .orange, items: trash)
+                    GroupCard(title: L("Araçla temizlenecek (docker / simctl / pnpm)"), symbol: "terminal.fill", color: .blue, items: commands)
                 }
             }
             .frame(maxHeight: 300)
 
             if cautionCount > 0 {
-                Label("\(cautionCount) öğe \"Dikkat\" seviyesinde. Açıklamalarını okuduğundan emin ol.",
+                Label(L("\(cautionCount) öğe \"Dikkat\" seviyesinde. Açıklamalarını okuduğundan emin ol."),
                       systemImage: "exclamationmark.triangle.fill")
                     .font(.callout)
                     .foregroundStyle(.orange)
@@ -50,14 +50,14 @@ struct ConfirmSheet: View {
 
             HStack {
                 Spacer()
-                Button("Vazgeç") { dismiss() }
+                Button(L("Vazgeç")) { dismiss() }
                     .keyboardShortcut(.cancelAction)
                     .controlSize(.large)
                 Button {
                     dismiss()
                     Task { await store.performDeletion() }
                 } label: {
-                    Label("Sil", systemImage: "trash").padding(.horizontal, 8)
+                    Label(L("Sil"), systemImage: "trash").padding(.horizontal, 8)
                 }
                 .keyboardShortcut(.defaultAction)
                 .buttonStyle(.borderedProminent)
@@ -127,7 +127,7 @@ struct ResultSheet: View {
                 Text(Format.bytes(shownBytes))
                     .font(.system(size: 40, weight: .bold, design: .rounded))
                     .contentTransition(.numericText(value: Double(shownBytes)))
-                Text("\(ok.count) öğe temizlendi" + (failed.isEmpty ? "" : " · \(failed.count) hata") + " · tahmini")
+                Text(L("\(ok.count) öğe temizlendi") + (failed.isEmpty ? "" : L(" · \(failed.count) hata")) + L(" · tahmini"))
                     .foregroundStyle(.secondary)
             }
             .padding(.top, 6)
@@ -141,14 +141,14 @@ struct ResultSheet: View {
             }
             .frame(height: 230)
 
-            Text("Çöp Kutusu'na taşınanlar yer açmaz; \"Çöp Kutusu\" kategorisinden boşaltabilirsin. macOS boşalan alanı biraz gecikmeyle gösterir.")
+            Text(L("Çöp Kutusu'na taşınanlar yer açmaz; \"Çöp Kutusu\" kategorisinden boşaltabilirsin. macOS boşalan alanı biraz gecikmeyle gösterir."))
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack {
                 Spacer()
-                Button("Kapat") { dismiss() }
+                Button(L("Kapat")) { dismiss() }
                     .keyboardShortcut(.defaultAction)
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
@@ -205,11 +205,11 @@ struct ExclusionsSheet: View {
             HStack(spacing: 14) {
                 IconTile(symbol: "eye.slash.fill", tint: .gray, size: 44)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Dışlanan klasörler").font(.system(size: 22, weight: .bold, design: .rounded))
-                    Text("Bu klasörlerde ve içlerinde hiçbir işlem yapılmaz.").foregroundStyle(.secondary)
+                    Text(L("Dışlanan klasörler")).font(.system(size: 22, weight: .bold, design: .rounded))
+                    Text(L("Bu klasörlerde ve içlerinde hiçbir işlem yapılmaz.")).foregroundStyle(.secondary)
                 }
             }
-            Text("Bir dışlanan klasörü içeren üst öğeler de listelenmez ve silinemez. Değişiklik hemen uygulanır ve yeniden taranır.")
+            Text(L("Bir dışlanan klasörü içeren üst öğeler de listelenmez ve silinemez. Değişiklik hemen uygulanır ve yeniden taranır."))
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -233,11 +233,11 @@ struct ExclusionsSheet: View {
 
             HStack {
                 Button { store.pickExcludedFolders() } label: {
-                    Label("Klasör ekle…", systemImage: "plus")
+                    Label(L("Klasör ekle…"), systemImage: "plus")
                 }
                 .controlSize(.large)
                 Spacer()
-                Button("Kapat") { dismiss() }
+                Button(L("Kapat")) { dismiss() }
                     .keyboardShortcut(.defaultAction)
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
@@ -252,8 +252,8 @@ private struct EmptyHint: View {
     var body: some View {
         VStack(spacing: 6) {
             Image(systemName: "folder.badge.minus").font(.system(size: 26)).foregroundStyle(.secondary)
-            Text("Henüz dışlanan klasör yok").font(.headline)
-            Text("Bir öğeye sağ tıklayıp \"Dışlananlara Ekle\" de diyebilirsin.")
+            Text(L("Henüz dışlanan klasör yok")).font(.headline)
+            Text(L("Bir öğeye sağ tıklayıp \"Dışlananlara Ekle\" de diyebilirsin."))
                 .font(.callout)
                 .foregroundStyle(.secondary)
         }
@@ -280,7 +280,7 @@ private struct ExcludedRow: View {
                     .foregroundStyle(hovering ? Color.red : Color.secondary)
             }
             .buttonStyle(.plain)
-            .help("Dışlamayı kaldır")
+            .help(L("Dışlamayı kaldır"))
         }
         .padding(10)
         .card(cornerRadius: 10, fill: Color.primary.opacity(hovering ? 0.08 : 0.045))

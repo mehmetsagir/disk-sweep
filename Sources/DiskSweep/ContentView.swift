@@ -93,8 +93,8 @@ struct ContentView: View {
         } else if let category = Catalog.all.first(where: { $0.id == selectedID }) {
             CategoryPage(store: store, category: category)
         } else {
-            EmptyState(symbol: "sidebar.left", title: "Bir kategori seçin",
-                       message: "Soldaki listeden temizlemek istediğiniz alanı seçin.", tint: .accentColor)
+            EmptyState(symbol: "sidebar.left", title: L("Bir kategori seçin"),
+                       message: L("Soldaki listeden temizlemek istediğiniz alanı seçin."), tint: .accentColor)
         }
     }
 }
@@ -108,7 +108,7 @@ struct SearchField: View {
     var body: some View {
         HStack(spacing: 6) {
             Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-            TextField("Ara…  ⌘F", text: $text)
+            TextField(L("Ara…  ⌘F"), text: $text)
                 .textFieldStyle(.plain)
                 .focused(focused)
                 .onExitCommand { text = "" }
@@ -141,10 +141,10 @@ struct SidebarView: View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
-                    SidebarSection(title: "Araçlar") {
-                        SidebarRow(id: FolderScan.categoryID, title: "Klasör Tara", symbol: "magnifyingglass",
+                    SidebarSection(title: L("Araçlar")) {
+                        SidebarRow(id: FolderScan.categoryID, title: L("Klasör Tara"), symbol: "magnifyingglass",
                                    tint: .indigo, selection: $selection, namespace: highlight) { EmptyView() }
-                        SidebarRow(id: AppNavigation.settingsPage, title: "Ayarlar", symbol: "gearshape.fill",
+                        SidebarRow(id: AppNavigation.settingsPage, title: L("Ayarlar"), symbol: "gearshape.fill",
                                    tint: .gray, selection: $selection, namespace: highlight) { EmptyView() }
                     }
                     ForEach(CategoryGroup.allCases, id: \.self) { group in
@@ -269,7 +269,7 @@ struct DiskGauge: View {
                     .font(.system(size: 26, weight: .bold, design: .rounded))
                     .foregroundStyle(isLow ? Color.red : .primary)
                     .contentTransition(.numericText(value: Double(disk.available)))
-                Text("boş").foregroundStyle(.secondary)
+                Text(L("boş")).foregroundStyle(.secondary)
                 Spacer()
                 if isLow {
                     Image(systemName: "exclamationmark.triangle.fill")
@@ -294,7 +294,7 @@ struct DiskGauge: View {
             .frame(height: 9)
 
             HStack(spacing: 10) {
-                Label("\(Format.bytes(reclaimable)) temizlenebilir", systemImage: "circle.fill")
+                Label(L("\(Format.bytes(reclaimable)) temizlenebilir"), systemImage: "circle.fill")
                     .foregroundStyle(.green)
                 Spacer(minLength: 4)
                 Text(Format.bytes(disk.total)).foregroundStyle(.secondary)
@@ -305,7 +305,7 @@ struct DiskGauge: View {
             .labelStyle(DotLabelStyle())
 
             Button(action: onShowExclusions) {
-                Label("Dışlanan klasörler (\(excludedCount))", systemImage: "eye.slash")
+                Label(L("Dışlanan klasörler (\(excludedCount))"), systemImage: "eye.slash")
                     .font(.callout)
             }
             .buttonStyle(.plain)

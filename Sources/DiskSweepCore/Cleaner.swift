@@ -23,7 +23,7 @@ public struct Cleaner: Sendable {
 
         switch item.action {
         case .informational:
-            return failure("Bu öğe yalnızca bilgi amaçlıdır, silinemez.")
+            return failure(L("Bu öğe yalnızca bilgi amaçlıdır, silinemez."))
 
         case .removePath(let url, let mode):
             // Second, independent check right before touching the disk.
@@ -31,7 +31,7 @@ public struct Cleaner: Sendable {
             do {
                 validated = try guardrail.validateRemoval(of: url)
             } catch {
-                return failure("Güvenlik kontrolü reddetti: \(error)")
+                return failure(L("Güvenlik kontrolü reddetti: \(String(describing: error))"))
             }
             if let message = await Self.remove(validated, mode: mode) { return failure(message) }
             return CleanupOutcome(item: item, freedBytes: freed, errorMessage: nil)
@@ -41,7 +41,7 @@ public struct Cleaner: Sendable {
             do {
                 validated = try guardrail.validateUserTrash(of: url)
             } catch {
-                return failure("Güvenlik kontrolü reddetti: \(error)")
+                return failure(L("Güvenlik kontrolü reddetti: \(String(describing: error))"))
             }
             if let message = await Self.remove(validated, mode: .trash) { return failure(message) }
             return CleanupOutcome(item: item, freedBytes: freed, errorMessage: nil)
@@ -51,7 +51,7 @@ public struct Cleaner: Sendable {
             if result.succeeded {
                 return CleanupOutcome(item: item, freedBytes: freed, errorMessage: nil)
             }
-            return failure(result.timedOut ? "Komut zaman aşımına uğradı" : result.lastMessageLine)
+            return failure(result.timedOut ? L("Komut zaman aşımına uğradı") : result.lastMessageLine)
         }
     }
 

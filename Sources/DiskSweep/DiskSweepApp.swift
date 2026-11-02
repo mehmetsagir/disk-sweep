@@ -1,4 +1,5 @@
 import SwiftUI
+import DiskSweepCore
 
 /// The only sanctioned way to really quit. ⌘Q and Dock > Quit just close the window and
 /// leave the menu bar readouts running.
@@ -99,7 +100,7 @@ struct DiskSweepApp: App {
         .defaultSize(width: 1100, height: 760)
         .commands {
             CommandGroup(replacing: .appSettings) {
-                Button("Ayarlar…") {
+                Button(L("Ayarlar…")) {
                     AppNavigation.shared.request = AppNavigation.settingsPage
                     appDelegate.menuBar?.openMainWindow()
                 }

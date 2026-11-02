@@ -14,10 +14,10 @@ enum MenuBarMetric: String, CaseIterable {
 
     var menuTitle: String {
         switch self {
-        case .cpu: return "İşlemci (CPU)"
-        case .memory: return "Bellek (RAM)"
+        case .cpu: return L("İşlemci (CPU)")
+        case .memory: return L("Bellek (RAM)")
         case .disk: return "Disk"
-        case .network: return "Ağ"
+        case .network: return L("Ağ")
         }
     }
     var defaultOn: Bool { self != .disk }
@@ -338,18 +338,18 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
             menu.addItem(entry)
         }
         menu.addItem(.separator())
-        let graphs = NSMenuItem(title: "Menü çubuğunda grafik", action: #selector(toggleGraphs), keyEquivalent: "")
+        let graphs = NSMenuItem(title: L("Menü çubuğunda grafik"), action: #selector(toggleGraphs), keyEquivalent: "")
         graphs.target = self
         graphs.state = MenuBarKey.graphsEnabled ? .on : .off
         menu.addItem(graphs)
         menu.addItem(.separator())
-        let open = NSMenuItem(title: "DiskSweep'i Aç", action: #selector(openFromMenu), keyEquivalent: "")
+        let open = NSMenuItem(title: L("DiskSweep'i Aç"), action: #selector(openFromMenu), keyEquivalent: "")
         open.target = self
         menu.addItem(open)
-        let settings = NSMenuItem(title: "Ayarlar…", action: #selector(openSettingsFromMenu), keyEquivalent: "")
+        let settings = NSMenuItem(title: L("Ayarlar…"), action: #selector(openSettingsFromMenu), keyEquivalent: "")
         settings.target = self
         menu.addItem(settings)
-        let quit = NSMenuItem(title: "DiskSweep'ten Çık", action: #selector(quitFromMenu), keyEquivalent: "")
+        let quit = NSMenuItem(title: L("DiskSweep'ten Çık"), action: #selector(quitFromMenu), keyEquivalent: "")
         quit.target = self
         menu.addItem(quit)
 
@@ -406,11 +406,11 @@ struct SystemPopover: View {
             MenuBarToggles()
 
             HStack {
-                Button(action: openMainWindow) { Label("DiskSweep'i aç", systemImage: "macwindow") }
+                Button(action: openMainWindow) { Label(L("DiskSweep'i aç"), systemImage: "macwindow") }
                     .buttonStyle(.plain)
                     .foregroundStyle(Color.accentColor)
                 Spacer()
-                Button("Çıkış") { AppLifecycle.quit() }
+                Button(L("Çıkış")) { AppLifecycle.quit() }
                     .buttonStyle(.plain)
                     .foregroundStyle(.secondary)
             }
@@ -475,7 +475,7 @@ private struct CPUCard: View {
     private var tint: Color { monitor.cpu > 0.85 ? .red : (monitor.cpu > 0.6 ? .orange : .blue) }
 
     var body: some View {
-        MetricCard(symbol: "cpu", tint: .blue, title: "İşlemci",
+        MetricCard(symbol: "cpu", tint: .blue, title: L("İşlemci"),
                    value: "\(Int((monitor.cpu * 100).rounded()))%", valueTint: tint) {
             Sparkline(values: monitor.cpuHistory, tint: tint, ceiling: 1).frame(height: 34)
             HStack(alignment: .bottom, spacing: 3) {
@@ -487,7 +487,7 @@ private struct CPUCard: View {
             }
             .frame(height: 22, alignment: .bottom)
             .animation(Motion.smooth, value: monitor.cores)
-            Text("\(monitor.cores.count) çekirdek")
+            Text(L("\(monitor.cores.count) çekirdek"))
                 .font(.caption).foregroundStyle(.secondary)
         }
     }
@@ -498,15 +498,15 @@ private struct MemoryCard: View {
 
     private var pressure: (label: String, tint: Color) {
         switch monitor.memory.pressure {
-        case .normal: return ("Bellek baskısı normal", .green)
-        case .warning: return ("Bellek baskısı yüksek", .orange)
-        case .critical: return ("Bellek baskısı kritik", .red)
+        case .normal: return (L("Bellek baskısı normal"), .green)
+        case .warning: return (L("Bellek baskısı yüksek"), .orange)
+        case .critical: return (L("Bellek baskısı kritik"), .red)
         }
     }
 
     var body: some View {
         let memory = monitor.memory
-        MetricCard(symbol: "memorychip", tint: .purple, title: "Bellek",
+        MetricCard(symbol: "memorychip", tint: .purple, title: L("Bellek"),
                    value: "\(Int((memory.fraction * 100).rounded()))%", valueTint: pressure.tint) {
             LevelBar(fraction: memory.fraction, tint: pressure.tint == .green ? .purple : pressure.tint)
             HStack {
@@ -534,10 +534,10 @@ private struct DiskCard: View {
                    value: Format.bytes(disk.available), valueTint: low ? .red : nil) {
             LevelBar(fraction: Double(disk.used) / Double(max(disk.total, 1)), tint: tint)
             HStack {
-                Text("\(Format.bytes(disk.used)) kullanılıyor · \(Format.bytes(disk.total)) toplam")
+                Text(L("\(Format.bytes(disk.used)) kullanılıyor · \(Format.bytes(disk.total)) toplam"))
                     .font(.caption).foregroundStyle(.secondary)
                 Spacer()
-                Button("Temizle…", action: onClean)
+                Button(L("Temizle…"), action: onClean)
                     .buttonStyle(.plain)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(Color.accentColor)
@@ -550,7 +550,7 @@ private struct NetworkCard: View {
     let monitor: SystemMonitor
 
     var body: some View {
-        MetricCard(symbol: "arrow.up.arrow.down", tint: .green, title: "Ağ",
+        MetricCard(symbol: "arrow.up.arrow.down", tint: .green, title: L("Ağ"),
                    value: "↓ " + Format.compactRate(monitor.download)) {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
@@ -576,16 +576,16 @@ private struct BatteryCard: View {
     private var tint: Color { battery.percent <= 20 && !battery.isCharging ? .red : .green }
 
     private var detail: String {
-        var text = battery.isCharging ? "Şarj oluyor" : (battery.onACPower ? "Prize bağlı" : "Pil kullanılıyor")
+        var text = battery.isCharging ? L("Şarj oluyor") : (battery.onACPower ? L("Prize bağlı") : L("Pil kullanılıyor"))
         if let minutes = battery.minutesRemaining, minutes > 0 {
-            text += " · \(minutes / 60) sa \(minutes % 60) dk"
+            text += L(" · \(minutes / 60) sa \(minutes % 60) dk")
         }
         return text
     }
 
     var body: some View {
         MetricCard(symbol: battery.isCharging ? "battery.100percent.bolt" : "battery.75percent", tint: .green,
-                   title: "Pil", value: "\(battery.percent)%", valueTint: tint) {
+                   title: L("Pil"), value: "\(battery.percent)%", valueTint: tint) {
             LevelBar(fraction: Double(battery.percent) / 100, tint: tint)
             Text(detail).font(.caption).foregroundStyle(.secondary)
         }
@@ -603,7 +603,7 @@ struct MenuBarToggles: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Menü çubuğunda göster")
+            Text(L("Menü çubuğunda göster"))
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 4)
@@ -611,8 +611,8 @@ struct MenuBarToggles: View {
                 Chip(title: "CPU", isOn: $cpu)
                 Chip(title: "RAM", isOn: $memory)
                 Chip(title: "Disk", isOn: $disk)
-                Chip(title: "Ağ", isOn: $network)
-                Chip(title: "Grafik", isOn: $graphs)
+                Chip(title: L("Ağ"), isOn: $network)
+                Chip(title: L("Grafik"), isOn: $graphs)
             }
         }
     }

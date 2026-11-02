@@ -11,7 +11,7 @@ public struct ShellResult: Sendable {
     /// Last non-empty line of stderr (or stdout), useful as a short error message.
     public var lastMessageLine: String {
         let text = stderr.isEmpty ? stdout : stderr
-        return text.split(whereSeparator: \.isNewline).last.map(String.init) ?? "Bilinmeyen hata"
+        return text.split(whereSeparator: \.isNewline).last.map(String.init) ?? L("Bilinmeyen hata")
     }
 }
 

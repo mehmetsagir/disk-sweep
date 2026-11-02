@@ -30,9 +30,9 @@ extension SafetyLevel {
 
     var label: String {
         switch self {
-        case .safe: return "Güvenli"
-        case .caution: return "Dikkat"
-        case .protected: return "Korumalı"
+        case .safe: return L("Güvenli")
+        case .caution: return L("Dikkat")
+        case .protected: return L("Korumalı")
         }
     }
 }

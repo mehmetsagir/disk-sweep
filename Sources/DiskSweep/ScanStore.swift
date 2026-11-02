@@ -250,8 +250,8 @@ final class ScanStore {
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = false
         panel.directoryURL = folderURL
-        panel.prompt = "Tara"
-        panel.message = "Taranacak klasörü seçin"
+        panel.prompt = L("Tara")
+        panel.message = L("Taranacak klasörü seçin")
         if panel.runModal() == .OK, let url = panel.url { openFolder(url) }
     }
 
@@ -262,8 +262,8 @@ final class ScanStore {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = true
-        panel.prompt = "Dışla"
-        panel.message = "Hiçbir işlem yapılmayacak klasörleri seçin"
+        panel.prompt = L("Dışla")
+        panel.message = L("Hiçbir işlem yapılmayacak klasörleri seçin")
         if panel.runModal() == .OK { addExcluded(panel.urls) }
     }
 

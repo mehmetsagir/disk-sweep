@@ -44,11 +44,11 @@ public struct SafetyGuard: Sendable {
 
         public var description: String {
             switch self {
-            case .notFileURL: return "Dosya yolu değil"
-            case .outsideAllowedLocations(let path): return "İzin verilen konumların dışında: \(path)"
-            case .protectedLocation(let why): return "Korunan konum (\(why))"
-            case .excludedByUser: return "Dışlanmış klasör — dokunulmaz"
-            case .viewOnly(let why): return "Yalnızca görüntülenir: \(why)"
+            case .notFileURL: return L("Dosya yolu değil")
+            case .outsideAllowedLocations(let path): return L("İzin verilen konumların dışında: \(path)")
+            case .protectedLocation(let why): return L("Korunan konum (\(why))")
+            case .excludedByUser: return L("Dışlanmış klasör — dokunulmaz")
+            case .viewOnly(let why): return L("Yalnızca görüntülenir: \(why)")
             }
         }
     }
@@ -132,7 +132,7 @@ public struct SafetyGuard: Sendable {
             case .childOf(let root):
                 guard candidate.deletingLastPathComponent().path == root else { continue }
                 if root == cachesPath, name.hasPrefix("com.apple."), name != "com.apple.dt.Xcode" {
-                    throw Violation.protectedLocation("Apple sistem önbelleği")
+                    throw Violation.protectedLocation(L("Apple sistem önbelleği"))
                 }
                 return candidate
             case .exactly(let path):
@@ -169,23 +169,23 @@ public struct SafetyGuard: Sendable {
         try rejectAlwaysProtected(components: components, name: name)
 
         guard candidate.path.hasPrefix(home.path + "/") else {
-            throw Violation.viewOnly("ana klasörünün dışı")
+            throw Violation.viewOnly(L("ana klasörünün dışı"))
         }
         let relative = Array(components.dropFirst(home.pathComponents.count))
         guard relative.count >= 2 else {
-            throw Violation.viewOnly("ana klasördeki klasörler korunur, içine girip seçin")
+            throw Violation.viewOnly(L("ana klasördeki klasörler korunur, içine girip seçin"))
         }
         let top = relative[0]
         if top == "Library" || top.hasPrefix(".") {
-            throw Violation.viewOnly("Library ve gizli klasörler")
+            throw Violation.viewOnly(L("Library ve gizli klasörler"))
         }
         if top.hasPrefix("OneDrive") || Self.cloudFolderNames.contains(top) {
-            throw Violation.viewOnly("bulutla senkronize klasör")
+            throw Violation.viewOnly(L("bulutla senkronize klasör"))
         }
         if components.dropLast().contains(where: { part in
             Self.protectedBundleSuffixes.contains { part.hasSuffix($0) }
         }) {
-            throw Violation.viewOnly("uygulama/kütüphane paketinin içi")
+            throw Violation.viewOnly(L("uygulama/kütüphane paketinin içi"))
         }
         return candidate
     }
@@ -206,9 +206,9 @@ public struct SafetyGuard: Sendable {
     }
 
     private func rejectAlwaysProtected(components: [String], name: String) throws {
-        if components.contains(".git") { throw Violation.protectedLocation("git verisi") }
+        if components.contains(".git") { throw Violation.protectedLocation(L("git verisi")) }
         if components.contains("com.docker.docker") || name == "Docker.raw" {
-            throw Violation.protectedLocation("Docker disk imajı")
+            throw Violation.protectedLocation(L("Docker disk imajı"))
         }
     }
 }
