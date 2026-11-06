@@ -411,12 +411,19 @@ final class ScanStore {
             case .success(let found):
                 withAnimation(Motion.smooth) {
                     for verdict in found { verdicts[verdict.itemID] = verdict }
-                    let approved = found.filter(\.safe).map(\.itemID)
-                    let valid = Set(candidates.map(\.id))
-                    selection.formUnion(approved.filter(valid.contains))
+                    // Verdicts on whole-device findings (personal files, downloads) are advice only:
+                    // their names are untrusted input to the agent, so it may never tick them.
+                    let byID = Dictionary(uniqueKeysWithValues: candidates.map { ($0.id, $0) })
+                    let tickable = found.filter { $0.safe && byID[$0.itemID].map { !DeviceScan.isDeviceCategory($0.categoryID) } == true }
+                    let approved = tickable.map(\.itemID)
+                    selection.formUnion(approved)
                     // An item the agent now rejects must not stay ticked from an earlier pass.
                     for verdict in found where !verdict.safe { selection.remove(verdict.itemID) }
                     reviewNote = L("AI \(found.count) öğeyi inceledi: \(approved.count) tanesini güvenli buldu ve işaretledi.")
+                    let adviceOnly = found.filter(\.safe).count - approved.count
+                    if adviceOnly > 0 {
+                        reviewNote? += " " + L("Kişisel dosya adayları (\(adviceOnly)) yalnızca öneri olarak gösterildi, işaretlenmedi.")
+                    }
                 }
             }
         }

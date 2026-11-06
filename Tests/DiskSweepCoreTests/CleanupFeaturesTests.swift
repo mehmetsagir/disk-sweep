@@ -412,12 +412,48 @@ final class DeviceScanTests: XCTestCase {
         XCTAssertTrue(items.isEmpty)
     }
 
-    func testLargeFilesNeedAIApprovalInBalancedLevel() {
+    func testLargeFilesAreNeverTickedOnTheAIsWord() {
         let item = CleanupItem(id: "x", categoryID: DeviceScan.largeID, title: "f", detail: "", size: 1, safety: .caution,
                                action: .trashUserSelected(URL(fileURLWithPath: "/tmp/f")),
                                modified: Date().addingTimeInterval(-400 * 86400))
         XCTAssertFalse(CleanupLevel.balanced.shouldSelect(item, verdict: nil))
-        XCTAssertTrue(CleanupLevel.balanced.shouldSelect(item, verdict: AIVerdict(itemID: "x", safe: true, reason: "")))
+        // Even an AI "safe" never ticks a personal-file candidate; only the Thorough level does.
+        XCTAssertFalse(CleanupLevel.balanced.shouldSelect(item, verdict: AIVerdict(itemID: "x", safe: true, reason: "")))
+        XCTAssertTrue(CleanupLevel.thorough.shouldSelect(item, verdict: nil))
         XCTAssertTrue(AgentReview.reviewable([item]).count == 1)
+    }
+}
+
+
+final class LeftoverSafetyTests: XCTestCase {
+    private func app(_ id: String, _ name: String) -> InstalledApp {
+        InstalledApp(url: URL(fileURLWithPath: "/Applications/\(name).app"), bundleID: id, name: name)
+    }
+
+    func testSiblingAppDataIsNotClaimed() {
+        let others = [app("com.vendor.App", "App"), app("com.vendor.App.Canary", "App Canary")]
+        XCTAssertTrue(LeftoverRules.matches(entry: "com.vendor.App", folder: "Caches", bundleID: "com.vendor.App",
+                                            appName: "App", others: others))
+        XCTAssertFalse(LeftoverRules.matches(entry: "com.vendor.App.Canary", folder: "Caches", bundleID: "com.vendor.App",
+                                             appName: "App", others: others))
+        XCTAssertFalse(LeftoverRules.matches(entry: "com.vendor.App.Canary.plist", folder: "Preferences",
+                                             bundleID: "com.vendor.App", appName: "App", others: others))
+        XCTAssertFalse(LeftoverRules.matches(entry: "TEAM123456.com.vendor.App.Canary", folder: "Group Containers",
+                                             bundleID: "com.vendor.App", appName: "App", others: others))
+    }
+
+    func testNameMatchRefusesSharedVendorFoldersAndOtherAppsNames() {
+        XCTAssertFalse(LeftoverRules.matches(entry: "Google", folder: "Application Support", bundleID: "com.example.Google",
+                                             appName: "Google"))
+        let others = [app("com.other.Notes", "Notes Pro")]
+        XCTAssertFalse(LeftoverRules.matches(entry: "Notes Pro", folder: "Application Support",
+                                             bundleID: "com.example.NotesPro", appName: "Notes Pro", others: others))
+    }
+
+    func testShortOrAppleBundleIDsAreNotUninstallable() {
+        XCTAssertFalse(InstalledApps.isUninstallable(bundleID: "com.foo", ownBundleID: nil))
+        XCTAssertFalse(InstalledApps.isUninstallable(bundleID: "COM.APPLE.Safari", ownBundleID: nil))
+        XCTAssertFalse(InstalledApps.isUninstallable(bundleID: "com..App", ownBundleID: nil))
+        XCTAssertTrue(InstalledApps.isUninstallable(bundleID: "com.vendor.App", ownBundleID: nil))
     }
 }

@@ -421,3 +421,4 @@
 "%lld kalıcı" = "%lld permanent";
 "Temizleniyor…" = "Cleaning…";
 "Ayarlardaki ajan öğeleri kontrol eder; hiçbir şey silinmez." = "The agent from Settings checks the items; nothing is deleted.";
+"Kişisel dosya adayları (%lld) yalnızca öneri olarak gösterildi, işaretlenmedi." = "Personal-file candidates (%lld) are shown as advice only and were not ticked.";

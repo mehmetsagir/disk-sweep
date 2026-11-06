@@ -202,7 +202,7 @@ public struct SafetyGuard: Sendable {
     /// top-level bundle in /Applications or ~/Applications whose real bundle ID matches the
     /// plan; every leftover must be tied to that bundle ID or name by `LeftoverRules`.
     /// Leftovers that fail are dropped; a bad app throws.
-    public func validateUninstall(_ plan: AppUninstallPlan) throws -> ApprovedUninstall {
+    public func validateUninstall(_ plan: AppUninstallPlan, installed: [InstalledApp]? = nil) throws -> ApprovedUninstall {
         let app = try canonicalCandidate(plan.appURL)
         if isExcluded(app.path) { throw Violation.excludedByUser(app.path) }
 
@@ -218,6 +218,7 @@ public struct SafetyGuard: Sendable {
             throw Violation.protectedLocation(L("Korumalı uygulama"))
         }
 
+        let others = installed ?? InstalledApps.all(home: home)
         let library = home.appendingPathComponent("Library").path
         var leftovers: [URL] = []
         for url in plan.leftovers {
@@ -227,7 +228,7 @@ public struct SafetyGuard: Sendable {
             let folder = String(folderPath.dropFirst(library.count + 1))
             guard LeftoverRules.folders.contains(folder),
                   LeftoverRules.matches(entry: candidate.lastPathComponent, folder: folder,
-                                        bundleID: info.bundleID, appName: info.name) else { continue }
+                                        bundleID: info.bundleID, appName: info.name, others: others) else { continue }
             leftovers.append(candidate)
         }
         return ApprovedUninstall(app: app, leftovers: leftovers)

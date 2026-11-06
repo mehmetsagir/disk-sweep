@@ -30,8 +30,40 @@ public enum LeftoverRules {
     /// Shorter names are too generic to claim ("Code", "Mail").
     private static let minimumNameLength = 5
 
-    public static func matches(entry: String, folder: String, bundleID: String, appName: String) -> Bool {
-        guard !bundleID.isEmpty, bundleID.contains(".") else { return false }
+    /// Vendor folders shared by several apps: never claimed by name.
+    private static let sharedFolderNames: Set<String> = [
+        "Google", "Microsoft", "Adobe", "Apple", "Mozilla", "JetBrains", "Firefox", "Chromium",
+        "AddressBook", "CloudDocs", "MobileSync", "com.apple", "Steam", "Code", "Mail", "Safari",
+    ]
+
+    /// True when `entry` belongs more specifically to ANOTHER installed app than to `bundleID`:
+    /// uninstalling "com.vendor.App" must not take "com.vendor.App.Canary"'s data along.
+    static func isClaimedByAnotherApp(entry: String, folder: String, bundleID: String, appName: String,
+                                      others: [InstalledApp]) -> Bool {
+        var base = entry
+        for suffix in [".plist", ".savedState", ".binarycookies"] where base.hasSuffix(suffix) {
+            base = String(base.dropLast(suffix.count))
+        }
+        for other in others where other.bundleID != bundleID {
+            if other.bundleID.count > bundleID.count,
+               base == other.bundleID || base.hasPrefix(other.bundleID + ".")
+                || (folder == "Group Containers" && base.hasSuffix("." + other.bundleID)) { return true }
+            // Two installed apps share this name: the folder cannot be attributed to just one of them.
+            if entry == other.name { return true }
+        }
+        return false
+    }
+
+    public static func matches(entry: String, folder: String, bundleID: String, appName: String,
+                               others: [InstalledApp] = []) -> Bool {
+        guard InstalledApps.isReverseDNS(bundleID) else { return false }
+        if matchesIgnoringOthers(entry: entry, folder: folder, bundleID: bundleID, appName: appName) {
+            return !isClaimedByAnotherApp(entry: entry, folder: folder, bundleID: bundleID, appName: appName, others: others)
+        }
+        return false
+    }
+
+    private static func matchesIgnoringOthers(entry: String, folder: String, bundleID: String, appName: String) -> Bool {
 
         // Preferences, saved state, cookies carry a suffix; strip it before comparing.
         var base = entry
@@ -43,18 +75,19 @@ public enum LeftoverRules {
         if base.hasPrefix(bundleID + ".") { return true }
         // Group containers are named "<team>.<bundle id>".
         if folder == "Group Containers", base.hasSuffix("." + bundleID) { return true }
-        if nameMatchedFolders.contains(folder), appName.count >= minimumNameLength, entry == appName { return true }
+        if nameMatchedFolders.contains(folder), appName.count >= minimumNameLength,
+           entry == appName, !sharedFolderNames.contains(entry) { return true }
         return false
     }
 
     /// Existing leftovers of an app under `library` (~/Library).
-    public static func discover(library: URL, bundleID: String, appName: String) -> [URL] {
+    public static func discover(library: URL, bundleID: String, appName: String, others: [InstalledApp] = []) -> [URL] {
         let fm = FileManager.default
         var found: [URL] = []
         for folder in folders {
             let directory = library.appendingPathComponent(folder)
             guard let names = try? fm.contentsOfDirectory(atPath: directory.path) else { continue }
-            for name in names where matches(entry: name, folder: folder, bundleID: bundleID, appName: appName) {
+            for name in names where matches(entry: name, folder: folder, bundleID: bundleID, appName: appName, others: others) {
                 found.append(directory.appendingPathComponent(name))
             }
         }
@@ -62,12 +95,33 @@ public enum LeftoverRules {
     }
 }
 
+public struct InstalledApp: Sendable, Hashable {
+    public let url: URL
+    public let bundleID: String
+    public let name: String
+}
+
 public enum InstalledApps {
+    /// At least three reverse-DNS parts ("com.vendor.App"): shorter IDs are too broad a key for
+    /// claiming files by prefix.
+    static func isReverseDNS(_ bundleID: String) -> Bool {
+        bundleID.split(separator: ".", omittingEmptySubsequences: false).count >= 3
+            && !bundleID.split(separator: ".", omittingEmptySubsequences: false).contains { $0.isEmpty }
+    }
+
     /// Bundle IDs that can never be uninstalled from this app.
     public static func isUninstallable(bundleID: String, ownBundleID: String? = Bundle.main.bundleIdentifier) -> Bool {
-        if bundleID.hasPrefix("com.apple.") { return false }
+        let lowered = bundleID.lowercased()
+        if lowered == "com.apple" || lowered.hasPrefix("com.apple.") { return false }
         if bundleID == ownBundleID || bundleID == "com.mehmetsagir.DiskSweep" { return false }
-        return bundleID.contains(".")
+        return isReverseDNS(bundleID)
+    }
+
+    /// Every app in /Applications and ~/Applications that has a readable bundle ID.
+    public static func all(home: URL) -> [InstalledApp] {
+        applicationURLs(home: home).compactMap { url in
+            info(at: url).map { InstalledApp(url: url, bundleID: $0.bundleID, name: $0.name) }
+        }
     }
 
     public static func info(at url: URL) -> (bundleID: String, name: String)? {
@@ -94,14 +148,13 @@ public enum InstalledApps {
 extension Scanners {
     @Sendable static func installedApps(_ ctx: ScanContext) async -> ScanOutcome {
         let library = ctx.home.appendingPathComponent("Library")
+        let installed = InstalledApps.all(home: ctx.home)
         var plans: [AppUninstallPlan] = []
-        for url in InstalledApps.applicationURLs(home: ctx.home) {
-            guard let info = InstalledApps.info(at: url),
-                  InstalledApps.isUninstallable(bundleID: info.bundleID) else { continue }
-            let leftovers = LeftoverRules.discover(library: library, bundleID: info.bundleID, appName: info.name)
-            let plan = AppUninstallPlan(appURL: url, bundleID: info.bundleID, appName: info.name, leftovers: leftovers)
+        for app in installed where InstalledApps.isUninstallable(bundleID: app.bundleID) {
+            let leftovers = LeftoverRules.discover(library: library, bundleID: app.bundleID, appName: app.name, others: installed)
+            let plan = AppUninstallPlan(appURL: app.url, bundleID: app.bundleID, appName: app.name, leftovers: leftovers)
             // Anything the guard would refuse never reaches the UI.
-            guard (try? ctx.guardrail.validateUninstall(plan)) != nil else { continue }
+            guard (try? ctx.guardrail.validateUninstall(plan, installed: installed)) != nil else { continue }
             plans.append(plan)
         }
 

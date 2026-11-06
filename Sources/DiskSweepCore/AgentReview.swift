@@ -219,8 +219,10 @@ public enum CleanupLevel: String, CaseIterable, Sendable, Identifiable {
             return item.safety == .safe
         case .balanced:
             if item.safety == .safe { return true }
-            if verdict?.safe == true { return true }
-            // Big personal files are only ticked when the AI agent approved them.
+            // Whole-device findings are never ticked on the AI's word (see ScanStore.reviewWithAgent);
+            // big personal files are left to the user entirely.
+            let isDevice = DeviceScan.isDeviceCategory(item.categoryID)
+            if verdict?.safe == true, !isDevice { return true }
             if item.categoryID == DeviceScan.largeID { return false }
             guard let modified = item.modified else { return false }
             return now.timeIntervalSince(modified) > Self.unusedAfter
