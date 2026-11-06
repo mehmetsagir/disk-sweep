@@ -80,6 +80,7 @@ struct SettingsPage: View {
     @AppStorage(AppSettings.showWindowAtLaunch) private var showWindowAtLaunch = true
     @AppStorage(AppSettings.autoRefresh) private var autoRefresh = true
     @AppStorage(MenuBarKey.cpu) private var showCPU = true
+    @AppStorage(MenuBarKey.gpu) private var showGPU = true
     @AppStorage(MenuBarKey.memory) private var showMemory = true
     @AppStorage(MenuBarKey.disk) private var showDisk = false
     @AppStorage(MenuBarKey.network) private var showNetwork = true
@@ -138,6 +139,7 @@ struct SettingsPage: View {
 
                     SettingsSection(title: L("Menü çubuğu")) {
                         SettingRow(title: L("İşlemci (CPU)")) { Toggle("", isOn: $showCPU).labelsHidden().toggleStyle(.switch) }
+                        SettingRow(title: L("Grafik işlemci (GPU)")) { Toggle("", isOn: $showGPU).labelsHidden().toggleStyle(.switch) }
                         SettingRow(title: L("Bellek (RAM)")) { Toggle("", isOn: $showMemory).labelsHidden().toggleStyle(.switch) }
                         SettingRow(title: "Disk") { Toggle("", isOn: $showDisk).labelsHidden().toggleStyle(.switch) }
                         SettingRow(title: L("Ağ")) { Toggle("", isOn: $showNetwork).labelsHidden().toggleStyle(.switch) }
