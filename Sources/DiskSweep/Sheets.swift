@@ -9,22 +9,22 @@ struct ConfirmSheet: View {
 
     var body: some View {
         let items = store.selectedItems
-        let permanent = items.filter { $0.removalMode == .permanent }
-        let trash = items.filter { $0.removalMode == .trash }
+        let permanent = items.filter { store.effectiveMode(of: $0) == .permanent }
+        let trash = items.filter { store.effectiveMode(of: $0) == .trash }
         let commands = items.filter(\.isCommand)
         let cautionCount = items.filter { $0.safety == .caution }.count
 
         VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 14) {
-                IconTile(symbol: "trash.fill", tint: .red, size: 44)
+                IconTile(symbol: "trash", tint: .red, size: 44, emphasized: true)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(L("Silmeyi onayla")).font(.system(size: 22, weight: .bold, design: .rounded))
+                    Text(L("Silmeyi onayla")).font(.system(size: 22, weight: .bold))
                     Text(L("\(items.count) öğe seçildi")).foregroundStyle(.secondary)
                 }
                 Spacer()
                 VStack(alignment: .trailing, spacing: 0) {
                     Text(Format.bytes(store.selectedBytes))
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .font(.system(size: 28, weight: .bold))
                     Text(L("boşalacak (tahmini)")).font(.caption).foregroundStyle(.secondary)
                 }
             }
@@ -32,8 +32,8 @@ struct ConfirmSheet: View {
             ScrollView {
                 VStack(spacing: 10) {
                     GroupCard(title: L("Kalıcı olarak silinecek"), symbol: "flame.fill", color: .red, items: permanent)
-                    GroupCard(title: L("Çöp Kutusu'na taşınacak (geri alınabilir)"), symbol: "trash", color: .orange, items: trash)
-                    GroupCard(title: L("Araçla temizlenecek (docker / simctl / pnpm)"), symbol: "terminal.fill", color: .blue, items: commands)
+                    GroupCard(title: L("Çöp Kutusu'na taşınacak (geri alınabilir)"), symbol: "trash", color: .secondary, items: trash)
+                    GroupCard(title: L("Araçla temizlenecek (docker / simctl / pnpm)"), symbol: "terminal", color: .secondary, items: commands)
                 }
             }
             .frame(maxHeight: 300)
@@ -93,7 +93,7 @@ private struct GroupCard: View {
                         Text(item.title).lineLimit(1)
                         Spacer()
                         Text(item.size.map(Format.bytes) ?? "—")
-                            .font(.system(.callout, design: .rounded).monospacedDigit())
+                            .font(.system(.callout).monospacedDigit())
                             .foregroundStyle(.secondary)
                     }
                     .font(.callout)
@@ -123,9 +123,8 @@ struct ResultSheet: View {
                 Image(systemName: failed.isEmpty ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
                     .font(.system(size: 54))
                     .foregroundStyle(failed.isEmpty ? Color.green : .orange)
-                    .symbolEffect(.bounce, value: sealed)
                 Text(Format.bytes(shownBytes))
-                    .font(.system(size: 40, weight: .bold, design: .rounded))
+                    .font(.system(size: 40, weight: .bold))
                     .contentTransition(.numericText(value: Double(shownBytes)))
                 Text(L("\(ok.count) öğe temizlendi") + (failed.isEmpty ? "" : L(" · \(failed.count) hata")) + L(" · tahmini"))
                     .foregroundStyle(.secondary)
@@ -182,7 +181,7 @@ private struct ResultRow: View {
             Spacer()
             if outcome.succeeded {
                 Text(Format.bytes(outcome.freedBytes))
-                    .font(.system(.callout, design: .rounded).monospacedDigit())
+                    .font(.system(.callout).monospacedDigit())
                     .foregroundStyle(.secondary)
             }
         }
@@ -205,7 +204,7 @@ struct ExclusionsSheet: View {
             HStack(spacing: 14) {
                 IconTile(symbol: "eye.slash.fill", tint: .gray, size: 44)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(L("Dışlanan klasörler")).font(.system(size: 22, weight: .bold, design: .rounded))
+                    Text(L("Dışlanan klasörler")).font(.system(size: 22, weight: .bold))
                     Text(L("Bu klasörlerde ve içlerinde hiçbir işlem yapılmaz.")).foregroundStyle(.secondary)
                 }
             }

@@ -1,7 +1,7 @@
 import Foundation
 
 public enum CategoryGroup: String, CaseIterable, Sendable {
-    case xcode, docker, packageCaches, projects, system
+    case xcode, docker, packageCaches, projects, system, apps
 
     public var title: String {
         switch self {
@@ -10,6 +10,7 @@ public enum CategoryGroup: String, CaseIterable, Sendable {
         case .packageCaches: return L("Paket Önbellekleri")
         case .projects: return L("Projeler (~/Developer)")
         case .system: return L("Sistem ve Uygulamalar")
+        case .apps: return L("Uygulamalar")
         }
     }
 }
@@ -44,6 +45,13 @@ public struct CleanupCategory: Identifiable, Sendable {
     let scanner: @Sendable (ScanContext) async -> ScanOutcome
 
     public func scan(_ context: ScanContext) async -> ScanOutcome { await scanner(context) }
+}
+
+/// Reading some folders (Trash, Mail, Safari...) needs the Full Disk Access privacy permission.
+public enum FullDiskAccess {
+    public static let note =
+        L("Erişim reddedildi. Sistem Ayarları → Gizlilik ve Güvenlik → Tam Disk Erişimi'ne DiskSweep'i ekleyip uygulamayı yeniden başlatın.")
+    public static let settingsURL = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles")!
 }
 
 public enum Catalog {
@@ -108,6 +116,11 @@ public enum Catalog {
             id: "ios-backups", title: L("iPhone/iPad Yedekleri"), symbol: "externaldrive", group: .system,
             summary: L("Mac'e alınmış cihaz yedekleri. Geri getirilemez olabilir; bu yüzden Çöp Kutusu'na taşınır."),
             scanner: Scanners.iosBackups),
+
+        CleanupCategory(
+            id: "apps", title: L("Yüklü Uygulamalar"), symbol: "app.badge.checkmark", group: .apps,
+            summary: L("Uygulamalar klasöründeki uygulamaları artıklarıyla (önbellek, tercihler, uygulama verisi) birlikte kaldırın. Her şey Çöp Kutusu'na taşınır; Apple uygulamaları listelenmez."),
+            scanner: Scanners.installedApps),
     ]
 }
 
@@ -116,8 +129,7 @@ public enum Catalog {
 enum Scan {
     static let junkNames: Set<String> = [".DS_Store", ".localized", ".com.apple.timemachine.donotpresent"]
 
-    static let fullDiskAccessNote =
-        L("Erişim reddedildi. Sistem Ayarları → Gizlilik ve Güvenlik → Tam Disk Erişimi'ne DiskSweep'i ekleyip uygulamayı yeniden başlatın.")
+    static let fullDiskAccessNote = FullDiskAccess.note
 
     struct Entry: Sendable {
         let url: URL
@@ -573,14 +585,17 @@ enum Scanners {
 
 public enum Format {
     public static func bytes(_ value: Int64) -> String {
-        ByteCountFormatter.string(fromByteCount: value, countStyle: .file)
+        // The formatter spells zero out ("Zero KB") in the device language.
+        value <= 0 ? "0 KB" : ByteCountFormatter.string(fromByteCount: value, countStyle: .file)
     }
 
     /// Turkish relative time ("3 dakika önce"); "az önce" for the last few seconds.
     public static func relative(_ date: Date, now: Date = Date()) -> String {
         if now.timeIntervalSince(date) < 5 { return L("az önce") }
         let formatter = RelativeDateTimeFormatter()
-        formatter.locale = Locale(identifier: Bundle.main.preferredLocalizations.first ?? "en")
+        formatter.locale = AppLanguage.current == .system
+            ? Locale(identifier: Bundle.main.preferredLocalizations.first ?? "en")
+            : Locale(identifier: AppLanguage.current.rawValue)
         formatter.unitsStyle = .full
         return formatter.localizedString(for: date, relativeTo: now)
     }

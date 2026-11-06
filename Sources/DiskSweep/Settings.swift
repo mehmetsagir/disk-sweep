@@ -8,6 +8,9 @@ enum AppSettings {
     static let showWindowAtLaunch = "app.showWindowAtLaunch"
     static let autoRefresh = "app.autoRefresh"
     static let sampleInterval = "menubar.interval"
+    static let permanentDeletion = "cleanup.permanentDeletion"
+    static let agentKind = "ai.agentKind"
+    static let agentCustomCommand = "ai.customCommand"
 
     static func bool(_ key: String, default value: Bool) -> Bool {
         let defaults = UserDefaults.standard
@@ -16,6 +19,8 @@ enum AppSettings {
 
     static var showWindowAtLaunchEnabled: Bool { bool(showWindowAtLaunch, default: true) }
     static var autoRefreshEnabled: Bool { bool(autoRefresh, default: true) }
+    /// Off by default: items that would be deleted for good go to the Trash instead.
+    static var permanentDeletionEnabled: Bool { bool(permanentDeletion, default: false) }
 
     /// Seconds between menu bar samples.
     static var sampleSeconds: Double {
@@ -29,7 +34,12 @@ enum AppSettings {
 final class AppNavigation {
     static let shared = AppNavigation()
     var request: String?
+    /// Set by the menu bar (gauge names) or the command palette to open the "free up" sheet.
+    var freeResourceRequest: ResourceKind?
+    /// Bumped when the app language changes; the main window re-renders on it.
+    var languageRevision = 0
     static let settingsPage = "settings"
+    static let smartScanPage = "smartscan"
 }
 
 // MARK: - Launch at login
@@ -75,6 +85,11 @@ struct SettingsPage: View {
     @AppStorage(MenuBarKey.network) private var showNetwork = true
     @AppStorage(MenuBarKey.graphs) private var showGraphs = true
     @AppStorage(AppSettings.sampleInterval) private var interval = 2.0
+    @AppStorage(AppSettings.permanentDeletion) private var permanentDeletion = false
+    @State private var language = AppLanguage.current
+    @State private var languageChanged = false
+    @AppStorage(AppSettings.agentKind) private var agentKind = AgentKind.claude.rawValue
+    @AppStorage(AppSettings.agentCustomCommand) private var agentCustomCommand = ""
 
     var body: some View {
         VStack(spacing: 0) {
@@ -97,6 +112,19 @@ struct SettingsPage: View {
                         }
                         if launch.isEnabled && !launch.isInApplicationsFolder {
                             SettingNotice(text: L("Uygulama Uygulamalar klasöründe değil. Başlangıçta açılması için DiskSweep'i oraya taşıyıp ayarı yeniden açın."))
+                        }
+                        SettingRow(title: L("Dil"), detail: L("Uygulamanın dili. \"Sistem\" cihazın dilini izler.")) {
+                            Picker("", selection: Binding(get: { language }, set: { changeLanguage($0) })) {
+                                Text(L("Sistem")).tag(AppLanguage.system)
+                                Text("Türkçe").tag(AppLanguage.tr)
+                                Text("English").tag(AppLanguage.en)
+                            }
+                            .labelsHidden()
+                            .frame(width: 140)
+                        }
+                        if languageChanged {
+                            SettingNotice(text: L("Menü çubuğu paneli, uygulama yeniden başlayınca yeni dile geçer."),
+                                          tint: .accentColor, buttonTitle: L("Yeniden başlat")) { Self.relaunch() }
                         }
                         SettingRow(title: L("Açılışta ana pencereyi göster"),
                                    detail: L("Kapalıyken DiskSweep yalnızca menü çubuğunda başlar.")) {
@@ -137,7 +165,36 @@ struct SettingsPage: View {
                                        : L("\(store.excludedFolders.count) klasörde hiçbir işlem yapılmaz.")) {
                             Button(L("Yönet…")) { store.showExclusions = true }
                         }
+                        SettingRow(title: L("Kalıcı olarak sil"),
+                                   detail: permanentDeletion
+                                       ? L("Önbellek ve benzeri öğeler geri alınamaz şekilde silinir; alan hemen boşalır. Yedekler ve arşivler yine Çöp Kutusu'na gider.")
+                                       : L("Öğeler Çöp Kutusu'na taşınır ve geri alınabilir. Alan, Çöp Kutusu boşaltılınca açılır.")) {
+                            Toggle("", isOn: $permanentDeletion).labelsHidden().toggleStyle(.switch)
+                        }
                     }
+
+                    SettingsSection(title: L("AI ajanı")) {
+                        SettingRow(title: L("Ajan"),
+                                   detail: L("\"AI ile incele\" seçilen ajanı salt okunur çalıştırır. Ajan yalnızca hangi öğelerin işaretleneceğini söyler; silme yine onayınla ve güvenlik kontrolüyle yapılır.")) {
+                            Picker("", selection: $agentKind) {
+                                ForEach(AgentKind.allCases) { Text($0.title).tag($0.rawValue) }
+                            }
+                            .labelsHidden()
+                            .frame(width: 170)
+                        }
+                        if agentKind == AgentKind.custom.rawValue {
+                            SettingRow(title: L("Özel komut"),
+                                       detail: L("Komut istemi $DISKSWEEP_PROMPT ortam değişkeninden okur ve cevabı çıktıya yazar. Örnek: mycli --prompt \"$DISKSWEEP_PROMPT\"")) {
+                                TextField("mycli \"$DISKSWEEP_PROMPT\"", text: $agentCustomCommand)
+                                    .textFieldStyle(.roundedBorder)
+                                    .frame(width: 260)
+                            }
+                        }
+                    }
+
+                    LowSpaceSettingsSection()
+
+                    UpdateSettingsSection()
 
                     SettingsSection(title: L("Hakkında")) {
                         HStack(spacing: 14) {
@@ -158,6 +215,24 @@ struct SettingsPage: View {
             .frame(minHeight: 200, idealHeight: 400, maxHeight: .infinity)
         }
         .onAppear { launch.refresh() }
+    }
+
+    private func changeLanguage(_ new: AppLanguage) {
+        guard new != language else { return }
+        language = new
+        AppLanguage.current = new
+        languageChanged = true
+        // Rebuilds the main window so every L() string is read again.
+        AppNavigation.shared.languageRevision += 1
+    }
+
+    /// Starts a fresh copy of the app once this one has quit.
+    private static func relaunch() {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/sh")
+        process.arguments = ["-c", "sleep 0.6; /usr/bin/open -n \"$0\"", Bundle.main.bundlePath]
+        try? process.run()
+        AppLifecycle.quit()
     }
 
     private var launchDetail: String {

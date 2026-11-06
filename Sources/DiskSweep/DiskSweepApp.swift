@@ -20,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         menuBar = MenuBarController(monitor: .shared)
+        UpdateStore.shared.checkIfDue()
         // macOS only lays out new status items once the app has been active at least once.
         NSApp.activate(ignoringOtherApps: true)
 
@@ -90,10 +91,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 @main
 struct DiskSweepApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    @StateObject private var lowSpaceMonitor = LowSpaceMonitor()
 
     var body: some Scene {
         Window("DiskSweep", id: "main") {
             ContentView()
+                .task { lowSpaceMonitor.start() }
                 .frame(minWidth: 960, idealWidth: 1100, maxWidth: .infinity,
                        minHeight: 620, idealHeight: 760, maxHeight: .infinity)
         }

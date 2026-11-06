@@ -87,6 +87,43 @@ public final class CPUSampler {
     }
 }
 
+// MARK: - GPU
+
+public enum GPUReader {
+    public static func fraction(from statistics: [String: Any]) -> Double? {
+        guard let value = statistics["Device Utilization %"] else { return nil }
+        let percent: Double
+        if let number = value as? NSNumber {
+            percent = number.doubleValue
+        } else if let string = value as? String, let parsed = Double(string) {
+            percent = parsed
+        } else {
+            return nil
+        }
+        guard percent.isFinite, (0...100).contains(percent) else { return nil }
+        return percent / 100
+    }
+
+    public static func read() -> Double? {
+        guard let matching = IOServiceMatching("IOAccelerator") else { return nil }
+        var iterator: io_iterator_t = 0
+        guard IOServiceGetMatchingServices(kIOMainPortDefault, matching, &iterator) == KERN_SUCCESS else { return nil }
+        defer { IOObjectRelease(iterator) }
+
+        var service = IOIteratorNext(iterator)
+        while service != 0 {
+            let statistics = IORegistryEntryCreateCFProperty(service, "PerformanceStatistics" as CFString,
+                                                              kCFAllocatorDefault, 0)?.takeRetainedValue() as? [String: Any]
+            IOObjectRelease(service)
+            if let statistics, let fraction = fraction(from: statistics) {
+                return fraction
+            }
+            service = IOIteratorNext(iterator)
+        }
+        return nil
+    }
+}
+
 // MARK: - Static machine info
 
 public struct SystemInfo: Sendable {

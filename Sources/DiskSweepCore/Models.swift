@@ -52,6 +52,8 @@ public enum CleanupAction: Hashable, Sendable {
     /// A file/folder picked by hand in the folder scanner. Always goes to the Trash.
     case trashUserSelected(URL)
     case run(SafeCommand)
+    /// An installed app plus the leftovers it keeps in ~/Library. Always goes to the Trash.
+    case uninstall(AppUninstallPlan)
     case informational
 }
 
@@ -94,6 +96,7 @@ public struct CleanupItem: Identifiable, Hashable, Sendable {
         if let browseURL { return browseURL }
         switch action {
         case .removePath(let url, _), .trashUserSelected(let url): return url
+        case .uninstall(let plan): return plan.appURL
         case .run, .informational: return nil
         }
     }
@@ -101,9 +104,24 @@ public struct CleanupItem: Identifiable, Hashable, Sendable {
     public var removalMode: RemovalMode? {
         switch action {
         case .removePath(_, let mode): return mode
-        case .trashUserSelected: return .trash
+        case .trashUserSelected, .uninstall: return .trash
         case .run, .informational: return nil
         }
+    }
+
+    /// What will really happen to the item. A `.permanent` item is moved to the Trash
+    /// instead unless permanent deletion is switched on. Items that already live in the
+    /// Trash can only be removed for good.
+    public func effectiveRemovalMode(permanentDeletion: Bool, home: URL) -> RemovalMode? {
+        guard let mode = removalMode else { return nil }
+        guard mode == .permanent else { return .trash }
+        if case .removePath(let url, _) = action, SafetyGuard.isInsideTrash(url, home: home) { return .permanent }
+        return permanentDeletion ? .permanent : .trash
+    }
+
+    public var isUninstall: Bool {
+        if case .uninstall = action { return true }
+        return false
     }
 
     public var isCommand: Bool {

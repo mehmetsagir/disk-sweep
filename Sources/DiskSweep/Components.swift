@@ -26,7 +26,6 @@ struct PillButtonStyle: ButtonStyle {
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
             .background(Capsule().fill(Color.primary.opacity(configuration.isPressed ? 0.17 : 0.08)))
-            .scaleEffect(configuration.isPressed ? 0.95 : 1)
             .animation(Motion.snappy, value: configuration.isPressed)
     }
 }
@@ -43,13 +42,12 @@ struct SizeBar: View {
             ZStack(alignment: .leading) {
                 Capsule().fill(color.opacity(0.14))
                 Capsule()
-                    .fill(LinearGradient(colors: [color.opacity(0.95), color.opacity(0.55)],
-                                         startPoint: .leading, endPoint: .trailing))
+                    .fill(color.opacity(0.75))
                     .frame(width: max(4, proxy.size.width * (shown ? fraction : 0)))
             }
         }
         .frame(height: 5)
-        .onAppear { withAnimation(.smooth(duration: 0.7)) { shown = true } }
+        .onAppear { withAnimation(.smooth(duration: 0.4)) { shown = true } }
         .animation(Motion.smooth, value: fraction)
     }
 }
@@ -74,26 +72,31 @@ struct EmptyState: View {
     let title: String
     let message: String
     var tint: Color = .green
+    var actionTitle: String?
+    var action: (() -> Void)?
     @State private var appeared = false
 
     var body: some View {
         VStack(spacing: 14) {
             ZStack {
-                Circle().fill(tint.opacity(0.14)).frame(width: 84, height: 84)
+                Circle().fill(tint.opacity(0.13)).frame(width: 84, height: 84)
                 Image(systemName: symbol)
-                    .font(.system(size: 36, weight: .medium))
+                    .font(.system(size: 34, weight: .regular))
                     .foregroundStyle(tint)
-                    .symbolEffect(.bounce, value: appeared)
             }
             Text(title).font(.title3.weight(.semibold))
             Text(message)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 360)
+            if let actionTitle, let action {
+                Button(actionTitle, action: action)
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .opacity(appeared ? 1 : 0)
-        .offset(y: appeared ? 0 : 8)
         .onAppear { withAnimation(Motion.smooth) { appeared = true } }
     }
 }
@@ -196,7 +199,7 @@ struct PageHeader<Accessory: View>: View {
             HStack(alignment: .top, spacing: 14) {
                 IconTile(symbol: symbol, tint: tint, size: 46)
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(title).font(.system(size: 26, weight: .bold, design: .rounded))
+                    Text(title).font(.system(size: 26, weight: .bold))
                     Text(summary)
                         .font(.callout)
                         .foregroundStyle(.secondary)
@@ -206,7 +209,7 @@ struct PageHeader<Accessory: View>: View {
                 if let reclaimable {
                     VStack(alignment: .trailing, spacing: 0) {
                         Text(Format.bytes(reclaimable))
-                            .font(.system(size: 30, weight: .bold, design: .rounded))
+                            .font(.system(size: 30, weight: .bold))
                             .foregroundStyle(tint)
                             .contentTransition(.numericText(value: Double(reclaimable)))
                             .animation(Motion.spring, value: reclaimable)
@@ -325,7 +328,6 @@ struct ItemCard: View {
                              : Color.primary.opacity(hovering && canToggle ? 0.085 : 0.045),
               stroke: selected ? Color.accentColor.opacity(0.6) : Color.primary.opacity(0.08))
         .opacity(item.isSelectable ? 1 : 0.72)
-        .scaleEffect(hovering && canToggle ? 1.003 : 1)
         .animation(.easeOut(duration: 0.14), value: hovering)
         .animation(Motion.snappy, value: selected)
         .contentShape(Rectangle())
@@ -335,10 +337,7 @@ struct ItemCard: View {
             withAnimation(Motion.snappy) { store.setSelected(item, !selected) }
         }
         .opacity(appeared ? 1 : 0)
-        .offset(y: appeared ? 0 : 8)
-        .onAppear {
-            withAnimation(Motion.smooth.delay(index < 12 ? Double(index) * 0.03 : 0)) { appeared = true }
-        }
+        .onAppear { withAnimation(Motion.smooth) { appeared = true } }
         .contextMenu {
             if let url = item.path {
                 Button(L("Finder'da Göster")) { NSWorkspace.shared.activateFileViewerSelecting([url]) }
@@ -351,7 +350,6 @@ struct ItemCard: View {
         Image(systemName: item.isSelectable ? (selected ? "checkmark.circle.fill" : "circle") : "lock.fill")
             .font(.system(size: 20))
             .foregroundStyle(selected ? Color.accentColor : Color.secondary)
-            .symbolEffect(.bounce, value: selected)
             .contentTransition(.symbolEffect(.replace))
             .frame(width: 22, height: 22)
             .padding(.top, 1)
@@ -365,6 +363,7 @@ struct ItemCard: View {
             }
             Text(item.title).font(.body.weight(.semibold)).lineLimit(1)
             SafetyPill(level: item.safety)
+            if let verdict = store.verdicts[item.id] { AIVerdictBadge(verdict: verdict) }
             if let categoryTitle {
                 Text(categoryTitle)
                     .font(.caption2)
@@ -381,7 +380,7 @@ struct ItemCard: View {
                     ProgressView().controlSize(.small)
                 } else {
                     Text(item.size.map(Format.bytes) ?? "—")
-                        .font(.system(.body, design: .rounded).weight(.semibold).monospacedDigit())
+                        .font(.system(.body).weight(.semibold).monospacedDigit())
                         .contentTransition(.numericText(value: Double(item.size ?? 0)))
                         .animation(Motion.smooth, value: item.size)
                 }
@@ -409,66 +408,142 @@ struct ItemCard: View {
 
 struct FloatingActionBar: View {
     let store: ScanStore
+    @State private var hoveringDelete = false
 
     var body: some View {
-        let count = store.selectedItems.count
-        let visible = store.isDeleting || count > 0
+        let items = store.selectedItems
+        let visible = store.isDeleting || !items.isEmpty
 
         ZStack {
             if visible {
-                HStack(spacing: 14) {
-                    if store.isDeleting {
-                        ProgressView(value: Double(store.deletingProgress), total: Double(max(store.deletingTotal, 1)))
-                            .frame(width: 150)
-                            .animation(Motion.smooth, value: store.deletingProgress)
-                        Text(L("İşleniyor: \(store.deletingTitle)"))
-                            .lineLimit(1)
-                            .frame(maxWidth: 240, alignment: .leading)
-                        Text("\(store.deletingProgress)/\(store.deletingTotal)")
-                            .monospacedDigit()
-                            .foregroundStyle(.secondary)
-                    } else {
-                        Text("\(count)")
-                            .font(.system(.callout, design: .rounded).weight(.bold))
-                            .foregroundStyle(.white)
-                            .frame(minWidth: 26, minHeight: 26)
-                            .background(Circle().fill(Color.accentColor))
-                            .contentTransition(.numericText(value: Double(count)))
-                        VStack(alignment: .leading, spacing: 0) {
-                            Text(L("öğe seçili")).font(.caption).foregroundStyle(.secondary)
-                            Text(Format.bytes(store.selectedBytes))
-                                .font(.system(.title3, design: .rounded).weight(.bold))
-                                .contentTransition(.numericText(value: Double(store.selectedBytes)))
-                        }
-                        Button(L("Kaldır")) { withAnimation(Motion.spring) { store.clearAllSelection() } }
-                            .buttonStyle(.plain)
-                            .foregroundStyle(.secondary)
-                            .fixedSize()
-                        Button { store.showConfirmation = true } label: {
-                            Label(L("Sil…"), systemImage: "trash")
-                                .font(.body.weight(.semibold))
-                                .fixedSize()
-                                .padding(.horizontal, 6)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(.red)
-                        .controlSize(.large)
-                    }
+                Group {
+                    if store.isDeleting { progressContent } else { selectionContent(items) }
                 }
-                .fixedSize()
-                .padding(.leading, 18)
+                .padding(.leading, 16)
                 .padding(.trailing, 12)
-                .padding(.vertical, 10)
-                .background(.regularMaterial, in: Capsule())
-                .overlay(Capsule().strokeBorder(Color.primary.opacity(0.12)))
-                .shadow(color: .black.opacity(0.3), radius: 18, y: 8)
+                .padding(.vertical, 12)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1))
+                .shadow(color: .black.opacity(0.22), radius: 12, y: 4)
+                .fixedSize()
                 .padding(.bottom, 18)
                 .transition(.move(edge: .bottom).combined(with: .opacity).combined(with: .scale(scale: 0.96)))
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         .animation(Motion.spring, value: visible)
-        .animation(Motion.smooth, value: count)
+        .animation(Motion.smooth, value: items.count)
         .allowsHitTesting(visible)
+    }
+
+    // MARK: Selection
+
+    private func selectionContent(_ items: [CleanupItem]) -> some View {
+        let cautionCount = items.filter { $0.safety == .caution }.count
+        let permanentCount = items.filter { store.effectiveMode(of: $0) == .permanent }.count
+
+        return HStack(spacing: 16) {
+            ZStack {
+                Circle().fill(Color.accentColor.opacity(0.18)).frame(width: 36, height: 36)
+                Text("\(items.count)")
+                    .font(.system(.callout).weight(.semibold))
+                    .foregroundStyle(Color.accentColor)
+                    .monospacedDigit()
+                    .contentTransition(.numericText(value: Double(items.count)))
+            }
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(Format.bytes(store.selectedBytes))
+                    .font(.system(size: 20, weight: .semibold))
+                    .monospacedDigit()
+                    .contentTransition(.numericText(value: Double(store.selectedBytes)))
+                    .animation(Motion.smooth, value: store.selectedBytes)
+                HStack(spacing: 6) {
+                    Text(L("\(items.count) öğe seçili"))
+                        .foregroundStyle(.secondary)
+                    if cautionCount > 0 {
+                        badge(L("\(cautionCount) dikkat"), symbol: "exclamationmark.triangle.fill", tint: .orange)
+                    }
+                    if permanentCount > 0 {
+                        badge(L("\(permanentCount) kalıcı"), symbol: "flame.fill", tint: .red)
+                    }
+                }
+                .font(.caption)
+                .lineLimit(1)
+            }
+
+            Button {
+                withAnimation(Motion.spring) { store.clearAllSelection() }
+            } label: {
+                Text(L("Seçimi kaldır"))
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 6)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .fixedSize()
+
+            Button { store.showConfirmation = true } label: {
+                Label(L("Sil…"), systemImage: "trash")
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .fill(Color(red: 0.82, green: 0.22, blue: 0.22).opacity(hoveringDelete ? 1 : 0.92)))
+            }
+            .buttonStyle(.plain)
+            .onHover { hoveringDelete = $0 }
+            .animation(.easeOut(duration: 0.14), value: hoveringDelete)
+        }
+    }
+
+    private func badge(_ text: String, symbol: String, tint: Color) -> some View {
+        HStack(spacing: 3) {
+            Image(systemName: symbol).font(.system(size: 8, weight: .bold))
+            Text(text).fontWeight(.medium)
+        }
+        .foregroundStyle(tint)
+        .padding(.horizontal, 6).padding(.vertical, 2)
+        .background(Capsule().fill(tint.opacity(0.15)))
+    }
+
+    // MARK: Deleting
+
+    private var progressContent: some View {
+        let fraction = Double(store.deletingProgress) / Double(max(store.deletingTotal, 1))
+
+        return HStack(spacing: 14) {
+            ZStack {
+                Circle().stroke(Color.primary.opacity(0.12), lineWidth: 4)
+                Circle()
+                    .trim(from: 0, to: fraction)
+                    .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                    .animation(Motion.smooth, value: fraction)
+                Text("\(Int(fraction * 100))")
+                    .font(.system(size: 11, weight: .bold))
+                    .monospacedDigit()
+            }
+            .frame(width: 40, height: 40)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(L("Temizleniyor…")).font(.system(.body).weight(.semibold))
+                Text(store.deletingTitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .frame(maxWidth: 260, alignment: .leading)
+            }
+
+            Text("\(store.deletingProgress)/\(store.deletingTotal)")
+                .font(.system(.callout).weight(.medium))
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+                .padding(.trailing, 6)
+        }
     }
 }

@@ -8,13 +8,14 @@ import DiskSweepCore
 // macOS tints it for light/dark menu bars and wallpapers.
 
 enum MenuBarMetric: String, CaseIterable {
-    case cpu, memory, disk, network
+    case cpu, gpu, memory, disk, network
 
     var storageKey: String { "menubar.\(rawValue)" }
 
     var menuTitle: String {
         switch self {
         case .cpu: return L("İşlemci (CPU)")
+        case .gpu: return L("Grafik işlemci (GPU)")
         case .memory: return L("Bellek (RAM)")
         case .disk: return "Disk"
         case .network: return L("Ağ")
@@ -50,7 +51,7 @@ private struct StackedReading: View {
                 .tracking(0.6)
                 .opacity(0.62)
             Text(value)
-                .font(.system(size: 12, weight: .bold, design: .rounded).monospacedDigit())
+                .font(.system(size: 12, weight: .bold).monospacedDigit())
         }
         .foregroundStyle(.black)
     }
@@ -64,6 +65,25 @@ private struct CPUMenuBarArt: View {
     var body: some View {
         HStack(spacing: 5) {
             StackedReading(label: "CPU", value: "\(Int((value * 100).rounded()))%")
+                .frame(width: 31, alignment: .leading)
+            if showGraph {
+                Sparkline(values: Array(history.suffix(20)), tint: .black, ceiling: 1, length: 20)
+                    .frame(width: 28, height: 15)
+            }
+        }
+        .padding(.horizontal, 3)
+        .frame(height: 20)
+    }
+}
+
+private struct GPUMenuBarArt: View {
+    let history: [Double]
+    let value: Double
+    let showGraph: Bool
+
+    var body: some View {
+        HStack(spacing: 5) {
+            StackedReading(label: "GPU", value: "\(Int((value * 100).rounded()))%")
                 .frame(width: 31, alignment: .leading)
             if showGraph {
                 Sparkline(values: Array(history.suffix(20)), tint: .black, ceiling: 1, length: 20)
@@ -145,7 +165,7 @@ private struct NetworkMenuBarArt: View {
         HStack(spacing: 2) {
             Image(systemName: symbol).font(.system(size: 7, weight: .heavy)).opacity(0.7)
             Text(value)
-                .font(.system(size: 9.5, weight: .semibold, design: .rounded).monospacedDigit())
+                .font(.system(size: 9.5, weight: .semibold).monospacedDigit())
                 .frame(width: 34, alignment: .trailing)
         }
     }
@@ -180,6 +200,7 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         let openMain: () -> Void = { [weak self] in self?.openMainWindow() }
         configure(overviewPopover, content: SystemPopover(monitor: monitor, openMainWindow: openMain))
         popovers[.cpu] = makePopover(CPUDetail(monitor: monitor, openMainWindow: openMain))
+        popovers[.gpu] = makePopover(GPUCard(monitor: monitor).padding(14).frame(width: 350))
         popovers[.memory] = makePopover(MemoryDetail(monitor: monitor, openMainWindow: openMain))
         popovers[.disk] = makePopover(DiskDetail(monitor: monitor, openMainWindow: openMain))
         popovers[.network] = makePopover(NetworkDetail(monitor: monitor, openMainWindow: openMain))
@@ -243,7 +264,7 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         shownSignatures.removeAll()
         var anyVisible = false
         for (metric, item) in items {
-            let on = metric.isOn
+            let on = metric.isOn && (metric != .gpu || monitor.gpu != nil)
             if item.isVisible != on { item.isVisible = on }
             anyVisible = anyVisible || on
         }
@@ -255,6 +276,10 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
     }
 
     private func refreshImages() {
+        if items[.gpu]?.isVisible != (MenuBarMetric.gpu.isOn && monitor.gpu != nil) {
+            syncVisibility()
+            return
+        }
         let showGraph = MenuBarKey.graphsEnabled
         for (metric, item) in items where item.isVisible {
             // Skip identical artwork: assigning an image forces a layout pass.
@@ -270,6 +295,9 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         case .cpu:
             let graph = showGraph ? monitor.cpuHistory.suffix(20).map { Int($0 * 100) } : []
             return "\(Int(monitor.cpu * 100))|\(graph)"
+        case .gpu:
+            let graph = showGraph ? monitor.gpuHistory.suffix(20).map { Int($0 * 100) } : []
+            return "\(Int((monitor.gpu ?? 0) * 100))|\(graph)"
         case .memory:
             return "\(Int(monitor.memory.fraction * 100))|\(showGraph)"
         case .disk:
@@ -282,6 +310,7 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
     @ViewBuilder private func art(for metric: MenuBarMetric, showGraph: Bool) -> some View {
         switch metric {
         case .cpu: CPUMenuBarArt(history: monitor.cpuHistory, value: monitor.cpu, showGraph: showGraph)
+        case .gpu: GPUMenuBarArt(history: monitor.gpuHistory, value: monitor.gpu ?? 0, showGraph: showGraph)
         case .memory: MemoryMenuBarArt(fraction: monitor.memory.fraction, showGraph: showGraph)
         case .disk: DiskMenuBarArt(disk: monitor.disk, showGraph: showGraph)
         case .network: NetworkMenuBarArt(download: monitor.download, upload: monitor.upload)
@@ -331,6 +360,7 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         allPopovers.filter(\.isShown).forEach { $0.performClose(nil) }
         let menu = NSMenu()
         for metric in MenuBarMetric.allCases {
+            if metric == .gpu && monitor.gpu == nil { continue }
             let entry = NSMenuItem(title: metric.menuTitle, action: #selector(toggleMetric(_:)), keyEquivalent: "")
             entry.target = self
             entry.representedObject = metric.rawValue
@@ -399,6 +429,7 @@ struct SystemPopover: View {
     var body: some View {
         VStack(spacing: 10) {
             CPUCard(monitor: monitor)
+            if monitor.gpu != nil { GPUCard(monitor: monitor) }
             MemoryCard(monitor: monitor)
             DiskCard(monitor: monitor, onClean: openMainWindow)
             NetworkCard(monitor: monitor)
@@ -440,7 +471,7 @@ struct MetricCard<Content: View>: View {
                 Text(title).font(.headline)
                 Spacer()
                 Text(value)
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .font(.system(size: 22, weight: .bold))
                     .foregroundStyle(valueTint ?? .primary)
                     .contentTransition(.numericText())
             }
@@ -489,6 +520,21 @@ private struct CPUCard: View {
             .animation(Motion.smooth, value: monitor.cores)
             Text(L("\(monitor.cores.count) çekirdek"))
                 .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+}
+
+private struct GPUCard: View {
+    let monitor: SystemMonitor
+
+    var body: some View {
+        if let gpu = monitor.gpu {
+            let tint: Color = gpu > 0.85 ? .red : (gpu > 0.6 ? .orange : .blue)
+            MetricCard(symbol: "cpu", tint: .blue, title: L("Grafik işlemci"),
+                       value: "\(Int((gpu * 100).rounded()))%", valueTint: tint) {
+                Sparkline(values: monitor.gpuHistory, tint: tint, ceiling: 1).frame(height: 34)
+                LevelBar(fraction: gpu, tint: tint)
+            }
         }
     }
 }
@@ -596,6 +642,7 @@ private struct BatteryCard: View {
 
 struct MenuBarToggles: View {
     @AppStorage(MenuBarKey.cpu) private var cpu = true
+    @AppStorage(MenuBarKey.gpu) private var gpu = true
     @AppStorage(MenuBarKey.memory) private var memory = true
     @AppStorage(MenuBarKey.disk) private var disk = false
     @AppStorage(MenuBarKey.network) private var network = true
@@ -609,6 +656,7 @@ struct MenuBarToggles: View {
                 .padding(.horizontal, 4)
             HStack(spacing: 4) {
                 Chip(title: "CPU", isOn: $cpu)
+                Chip(title: "GPU", isOn: $gpu)
                 Chip(title: "RAM", isOn: $memory)
                 Chip(title: "Disk", isOn: $disk)
                 Chip(title: L("Ağ"), isOn: $network)

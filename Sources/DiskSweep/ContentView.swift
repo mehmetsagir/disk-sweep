@@ -9,6 +9,8 @@ struct ContentView: View {
     @State private var selectedID: String?
     @State private var navigation = AppNavigation.shared
     @FocusState private var searchFocused: Bool
+    @State private var showPalette = false
+    @State private var freeResourceKind: ResourceKind?
 
     init() {
         // `-DiskSweepSelect <id>` launch argument: open a given page (screenshot testing).
@@ -16,7 +18,7 @@ struct ContentView: View {
     }
 
     private var detailKey: String {
-        if selectedID == FolderScan.categoryID || selectedID == AppNavigation.settingsPage { return selectedID ?? "" }
+        if [FolderScan.categoryID, AppNavigation.settingsPage, AppNavigation.smartScanPage].contains(selectedID) { return selectedID ?? "" }
         return (selectedID ?? "") + (store.isSearching ? "|search" : "")
     }
 
@@ -38,22 +40,42 @@ struct ContentView: View {
             .animation(Motion.smooth, value: detailKey)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .id(navigation.languageRevision)
         .toolbar {
             ToolbarItem(placement: .automatic) {
                 SearchField(text: $store.searchText, focused: $searchFocused)
             }
         }
         .background {
-            // Cmd+F focuses the search field.
+            // Cmd+F focuses the search field, Cmd+K opens the command palette.
             Button("") { searchFocused = true }
                 .keyboardShortcut("f", modifiers: .command)
                 .opacity(0)
+            Button("") { showPalette.toggle() }
+                .keyboardShortcut("k", modifiers: .command)
+                .opacity(0)
+        }
+        .sheet(isPresented: $showPalette) {
+            CommandPalette(
+                store: store,
+                actions: PaletteActions(
+                    navigate: { id in withAnimation(Motion.snappy) { selectedID = id } },
+                    showFreeResource: { kind in freeResourceKind = kind }),
+                dismiss: { showPalette = false })
+        }
+        .sheet(item: $freeResourceKind) { kind in
+            FreeResourceSheet(kind: kind, config: store.agentConfig)
         }
         .sheet(isPresented: $store.showConfirmation) { ConfirmSheet(store: store) }
         .sheet(isPresented: $store.showResults) { ResultSheet(store: store) }
         .sheet(isPresented: $store.showExclusions) { ExclusionsSheet(store: store) }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             store.refreshStale()
+        }
+        .onChange(of: navigation.freeResourceRequest) { _, kind in
+            guard let kind else { return }
+            freeResourceKind = kind
+            navigation.freeResourceRequest = nil
         }
         .onChange(of: navigation.request) { _, request in
             guard let request else { return }
@@ -86,6 +108,8 @@ struct ContentView: View {
     @ViewBuilder private var detail: some View {
         if selectedID == AppNavigation.settingsPage {
             SettingsPage(store: store)
+        } else if selectedID == AppNavigation.smartScanPage {
+            SmartScanPage(store: store)
         } else if selectedID == FolderScan.categoryID {
             FolderPage(store: store)
         } else if store.isSearching {
@@ -142,6 +166,8 @@ struct SidebarView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     SidebarSection(title: L("Araçlar")) {
+                        SidebarRow(id: AppNavigation.smartScanPage, title: L("Akıllı Tarama"), symbol: "sparkle.magnifyingglass",
+                                   tint: .blue, selection: $selection, namespace: highlight) { EmptyView() }
                         SidebarRow(id: FolderScan.categoryID, title: L("Klasör Tara"), symbol: "magnifyingglass",
                                    tint: .indigo, selection: $selection, namespace: highlight) { EmptyView() }
                         SidebarRow(id: AppNavigation.settingsPage, title: L("Ayarlar"), symbol: "gearshape.fill",
@@ -163,6 +189,11 @@ struct SidebarView: View {
             }
             .frame(minHeight: 200, idealHeight: 400, maxHeight: .infinity)
 
+            if let update = UpdateStore.shared.available {
+                UpdateBanner(info: update) { withAnimation(Motion.snappy) { selection = AppNavigation.settingsPage } }
+                    .padding(.horizontal, 12)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
             DiskGauge(disk: store.disk, reclaimable: store.totalReclaimable,
                       excludedCount: store.excludedFolders.count) { showExclusions = true }
                 .padding(12)
@@ -240,7 +271,7 @@ struct SidebarTrailing: View {
             ProgressView().controlSize(.small)
         } else if state.reclaimableBytes > 0 {
             Text(Format.bytes(state.reclaimableBytes))
-                .font(.system(.callout, design: .rounded).weight(.medium).monospacedDigit())
+                .font(.system(.callout).weight(.medium).monospacedDigit())
                 .foregroundStyle(.secondary)
                 .contentTransition(.numericText(value: Double(state.reclaimableBytes)))
                 .animation(Motion.smooth, value: state.reclaimableBytes)
@@ -266,7 +297,7 @@ struct DiskGauge: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(Format.bytes(disk.available))
-                    .font(.system(size: 26, weight: .bold, design: .rounded))
+                    .font(.system(size: 26, weight: .bold))
                     .foregroundStyle(isLow ? Color.red : .primary)
                     .contentTransition(.numericText(value: Double(disk.available)))
                 Text(L("boş")).foregroundStyle(.secondary)
@@ -274,7 +305,6 @@ struct DiskGauge: View {
                 if isLow {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundStyle(.red)
-                        .symbolEffect(.pulse)
                 }
             }
 
@@ -282,11 +312,10 @@ struct DiskGauge: View {
                 ZStack(alignment: .leading) {
                     Capsule().fill(Color.primary.opacity(0.10))
                     Capsule()
-                        .fill(LinearGradient(colors: isLow ? [.red, .orange] : [Color.accentColor.opacity(0.7), Color.accentColor],
-                                             startPoint: .leading, endPoint: .trailing))
+                        .fill(isLow ? Color.red.opacity(0.85) : Color.accentColor.opacity(0.85))
                         .frame(width: proxy.size.width * usedFraction)
                     Capsule()
-                        .fill(Color.green)
+                        .fill(Color.green.opacity(0.8))
                         .frame(width: proxy.size.width * reclaimFraction)
                         .offset(x: proxy.size.width * (usedFraction - reclaimFraction))
                 }

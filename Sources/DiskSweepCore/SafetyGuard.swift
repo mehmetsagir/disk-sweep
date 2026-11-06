@@ -190,6 +190,54 @@ public struct SafetyGuard: Sendable {
         return candidate
     }
 
+    // MARK: - Uninstalling apps (Trash only)
+
+    /// The paths of an uninstall that passed every check.
+    public struct ApprovedUninstall: Sendable {
+        public let app: URL
+        public let leftovers: [URL]
+    }
+
+    /// Approves moving an installed app and its leftovers to the Trash. The app must be a
+    /// top-level bundle in /Applications or ~/Applications whose real bundle ID matches the
+    /// plan; every leftover must be tied to that bundle ID or name by `LeftoverRules`.
+    /// Leftovers that fail are dropped; a bad app throws.
+    public func validateUninstall(_ plan: AppUninstallPlan) throws -> ApprovedUninstall {
+        let app = try canonicalCandidate(plan.appURL)
+        if isExcluded(app.path) { throw Violation.excludedByUser(app.path) }
+
+        let parent = app.deletingLastPathComponent().path
+        let applicationRoots = ["/Applications", home.appendingPathComponent("Applications").path]
+        guard app.pathExtension == "app", applicationRoots.contains(parent) else {
+            throw Violation.outsideAllowedLocations(app.path)
+        }
+        guard let info = InstalledApps.info(at: app), info.bundleID == plan.bundleID else {
+            throw Violation.outsideAllowedLocations(app.path)
+        }
+        guard InstalledApps.isUninstallable(bundleID: info.bundleID) else {
+            throw Violation.protectedLocation(L("Korumalı uygulama"))
+        }
+
+        let library = home.appendingPathComponent("Library").path
+        var leftovers: [URL] = []
+        for url in plan.leftovers {
+            guard let candidate = try? canonicalCandidate(url), !isExcluded(candidate.path) else { continue }
+            let folderPath = candidate.deletingLastPathComponent().path
+            guard folderPath.hasPrefix(library + "/") else { continue }
+            let folder = String(folderPath.dropFirst(library.count + 1))
+            guard LeftoverRules.folders.contains(folder),
+                  LeftoverRules.matches(entry: candidate.lastPathComponent, folder: folder,
+                                        bundleID: info.bundleID, appName: info.name) else { continue }
+            leftovers.append(candidate)
+        }
+        return ApprovedUninstall(app: app, leftovers: leftovers)
+    }
+
+    public static func isInsideTrash(_ url: URL, home: URL) -> Bool {
+        let trash = home.standardizedFileURL.resolvingSymlinksInPath().appendingPathComponent(".Trash").path
+        return url.standardizedFileURL.path.hasPrefix(trash + "/")
+    }
+
     // MARK: - Shared
 
     /// Canonical path of the item: symlinks are resolved in the PARENT only, so a

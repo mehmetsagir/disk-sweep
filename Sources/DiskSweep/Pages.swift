@@ -15,8 +15,9 @@ struct CategoryPage: View {
                 symbol: category.symbol, tint: category.group.tint, title: category.title,
                 summary: category.summary, reclaimable: state.reclaimableBytes,
                 isScanning: state.isScanning, lastScanned: store.lastScanned[category.id],
-                note: state.note, onRefresh: { store.scan(category) }
+                note: [state.note, store.reviewNote].compactMap { $0 }.joined(separator: "\n").nilIfEmpty, onRefresh: { store.scan(category) }
             ) {
+                AIReviewButton(store: store, items: state.items)
                 PillButton(title: L("Güvenlileri seç"), symbol: "checkmark.shield") {
                     withAnimation(Motion.snappy) { store.selectSafe(in: state.items) }
                 }
@@ -30,6 +31,13 @@ struct CategoryPage: View {
             if state.items.isEmpty {
                 if state.isScanning || !state.hasScanned {
                     SkeletonList()
+                } else if state.note == FullDiskAccess.note {
+                    // Not "all clean": the folder could not be read at all.
+                    EmptyState(symbol: "lock.shield", title: L("Erişim izni gerekli"),
+                               message: FullDiskAccess.note, tint: .orange,
+                               actionTitle: L("Gizlilik Ayarlarını Aç")) {
+                        NSWorkspace.shared.open(FullDiskAccess.settingsURL)
+                    }
                 } else {
                     EmptyState(symbol: "sparkles", title: L("Burası tertemiz"),
                                message: L("Bu kategoride temizlenebilecek bir şey bulunamadı."), tint: category.group.tint)
@@ -55,8 +63,10 @@ struct SearchPage: View {
             PageHeader(
                 symbol: "magnifyingglass", tint: .indigo, title: L("Arama sonuçları"),
                 summary: L("\"\(store.searchText)\" için tüm kategorilerde \(results.count) sonuç.")
-                    + (store.isScanningAnything ? L(" Bazı kategoriler hâlâ taranıyor.") : "")
+                    + (store.isScanningAnything ? L(" Bazı kategoriler hâlâ taranıyor.") : ""),
+                note: store.reviewNote
             ) {
+                AIReviewButton(store: store, items: items)
                 PillButton(title: L("Güvenlileri seç"), symbol: "checkmark.shield") {
                     withAnimation(Motion.snappy) { store.selectSafe(in: items) }
                 }
@@ -69,7 +79,7 @@ struct SearchPage: View {
 
             if items.isEmpty {
                 EmptyState(symbol: "magnifyingglass", title: L("Sonuç yok"),
-                           message: L("\"\(store.searchText)\" ile eşleşen bir öğe bulunamadı."), tint: .indigo)
+                           message: L("\"\(store.searchText)\" ile eşleşen bir öğe bulunamadı."), tint: .accentColor)
             } else {
                 ItemListView(store: store, items: items, categoryTitles: titles)
             }
@@ -129,10 +139,10 @@ struct FolderPage: View {
             } else if visible.isEmpty {
                 if store.isSearching {
                     EmptyState(symbol: "magnifyingglass", title: L("Sonuç yok"),
-                               message: L("Bu klasörde \"\(store.searchText)\" ile eşleşen bir şey yok."), tint: .indigo)
+                               message: L("Bu klasörde \"\(store.searchText)\" ile eşleşen bir şey yok."), tint: .accentColor)
                 } else {
                     EmptyState(symbol: "folder", title: L("Klasör boş"),
-                               message: L("Bu klasörde gösterilecek bir şey yok."), tint: .indigo)
+                               message: L("Bu klasörde gösterilecek bir şey yok."), tint: .accentColor)
                 }
             } else {
                 ItemListView(store: store, items: visible) { item in
@@ -205,4 +215,8 @@ struct CrumbButton: View {
         .onHover { hovering = $0 }
         .animation(.easeOut(duration: 0.12), value: hovering)
     }
+}
+
+private extension String {
+    var nilIfEmpty: String? { isEmpty ? nil : self }
 }

@@ -18,6 +18,9 @@ final class SystemMonitor {
     var load = SystemInfo.loadAverage()
     var uptime = SystemInfo.uptime
 
+    // GPU
+    var gpu: Double? = GPUReader.read()
+
     // Memory
     var memory = MemoryReader.read()
 
@@ -39,6 +42,7 @@ final class SystemMonitor {
     // Histories for the graphs
     // Pre-filled so graphs span their full width from the first second.
     var cpuHistory = [Double](repeating: 0, count: SystemMonitor.historyLength)
+    var gpuHistory = [Double](repeating: 0, count: SystemMonitor.historyLength)
     var memoryHistory = [Double](repeating: MemoryReader.read().fraction, count: SystemMonitor.historyLength)
     var downloadHistory = [Double](repeating: 0, count: SystemMonitor.historyLength)
     var uploadHistory = [Double](repeating: 0, count: SystemMonitor.historyLength)
@@ -82,6 +86,7 @@ final class SystemMonitor {
         lastSample = now
 
         let processor = cpuSampler.sample()
+        let graphics = GPUReader.read()
         let network = networkSampler.sampleDetailed(now: now)
         let storage = diskSampler.sample(now: now)
 
@@ -93,6 +98,7 @@ final class SystemMonitor {
             cores = processor.cores
             load = SystemInfo.loadAverage()
             uptime = SystemInfo.uptime
+            gpu = graphics
 
             memory = MemoryReader.read()
 
@@ -113,6 +119,7 @@ final class SystemMonitor {
             battery = BatteryReader.read()
 
             push(&cpuHistory, processor.total)
+            if let graphics { push(&gpuHistory, graphics) }
             push(&memoryHistory, memory.fraction)
             push(&downloadHistory, network.down)
             push(&uploadHistory, network.up)
@@ -145,6 +152,7 @@ final class SystemMonitor {
 /// Which readings appear in the menu bar itself, and whether they carry a mini graph.
 enum MenuBarKey {
     static let cpu = MenuBarMetric.cpu.storageKey
+    static let gpu = MenuBarMetric.gpu.storageKey
     static let memory = MenuBarMetric.memory.storageKey
     static let disk = MenuBarMetric.disk.storageKey
     static let network = MenuBarMetric.network.storageKey

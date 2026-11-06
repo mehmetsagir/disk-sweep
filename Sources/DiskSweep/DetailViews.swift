@@ -18,6 +18,8 @@ struct DetailShell<Content: View>: View {
     let subtitle: String
     let value: String
     var valueTint: Color?
+    /// When set, the title is a button that opens the "free up" sheet for this resource.
+    var freeKind: ResourceKind?
     let openMainWindow: () -> Void
     @ViewBuilder let content: Content
     @State private var bodyHeight: CGFloat = 0
@@ -29,12 +31,31 @@ struct DetailShell<Content: View>: View {
         return max(240, min(smallest - 230, 720))
     }
 
+    @ViewBuilder private var titleView: some View {
+        let label = Text(title).font(.system(size: 20, weight: .bold))
+        if let freeKind {
+            Button {
+                AppNavigation.shared.freeResourceRequest = freeKind
+                openMainWindow()
+            } label: {
+                HStack(spacing: 5) {
+                    label
+                    Image(systemName: "bolt.circle.fill").font(.callout).foregroundStyle(tint)
+                }
+            }
+            .buttonStyle(.plain)
+            .help(L("Boşalt: açık uygulamaları listele ve kapat"))
+        } else {
+            label
+        }
+    }
+
     var body: some View {
         VStack(spacing: 12) {
             HStack(spacing: 10) {
                 IconTile(symbol: symbol, tint: tint, size: 36)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(title).font(.system(size: 20, weight: .bold, design: .rounded))
+                    titleView
                     Text(subtitle)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -42,7 +63,7 @@ struct DetailShell<Content: View>: View {
                 }
                 Spacer(minLength: 8)
                 Text(value)
-                    .font(.system(size: 30, weight: .bold, design: .rounded))
+                    .font(.system(size: 30, weight: .bold))
                     .foregroundStyle(valueTint ?? .primary)
                     .contentTransition(.numericText())
             }
@@ -138,7 +159,7 @@ struct LegendRow: View {
             Text(label).font(.callout)
             Spacer()
             Text(value)
-                .font(.system(.callout, design: .rounded).monospacedDigit())
+                .font(.system(.callout).monospacedDigit())
                 .foregroundStyle(.secondary)
         }
     }
@@ -152,7 +173,7 @@ struct InfoRow: View {
         HStack {
             Text(label).font(.callout).foregroundStyle(.secondary)
             Spacer()
-            Text(value).font(.system(.callout, design: .rounded).weight(.medium).monospacedDigit())
+            Text(value).font(.system(.callout).weight(.medium).monospacedDigit())
         }
     }
 }
@@ -180,7 +201,7 @@ struct ProcessList: View {
                             Text(process.name).font(.callout).lineLimit(1)
                             Spacer()
                             Text(metric == .cpu ? "\(Int(process.cpu.rounded()))%" : Format.bytes(Int64(process.memory)))
-                                .font(.system(.callout, design: .rounded).weight(.semibold).monospacedDigit())
+                                .font(.system(.callout).weight(.semibold).monospacedDigit())
                                 .foregroundStyle(.secondary)
                         }
                         LevelBar(fraction: metric == .cpu ? process.cpu / peak
@@ -213,7 +234,7 @@ struct CPUDetail: View {
 
     var body: some View {
         DetailShell(symbol: "cpu", tint: .blue, title: L("İşlemci"), subtitle: monitor.info.cpuModel,
-                    value: percent(monitor.cpu), valueTint: tint, openMainWindow: openMainWindow) {
+                    value: percent(monitor.cpu), valueTint: tint, freeKind: .cpu, openMainWindow: openMainWindow) {
             DetailCard(title: L("Kullanım geçmişi")) {
                 Sparkline(values: monitor.cpuHistory, tint: tint, ceiling: 1).frame(height: 62)
             }
@@ -282,7 +303,7 @@ struct MemoryDetail: View {
         DetailShell(symbol: "memorychip", tint: .purple, title: L("Bellek"),
                     subtitle: "\(size(memory.used)) / \(size(memory.total))",
                     value: percent(memory.fraction), valueTint: pressure.tint == .green ? nil : pressure.tint,
-                    openMainWindow: openMainWindow) {
+                    freeKind: .memory, openMainWindow: openMainWindow) {
             DetailCard(title: L("Kullanım geçmişi")) {
                 Sparkline(values: monitor.memoryHistory, tint: pressure.tint == .green ? .purple : pressure.tint, ceiling: 1)
                     .frame(height: 62)
@@ -350,7 +371,7 @@ struct DiskDetail: View {
                             Text(volume.name).font(.callout.weight(.medium)).lineLimit(1)
                             Spacer()
                             Text(volume.isReadOnly ? L("Salt okunur") : L("\(Format.bytes(volume.available)) boş"))
-                                .font(.system(.callout, design: .rounded).weight(.semibold).monospacedDigit())
+                                .font(.system(.callout).weight(.semibold).monospacedDigit())
                                 .foregroundStyle(volume.isReadOnly ? .secondary : .primary)
                         }
                         if volume.isReadOnly {
@@ -369,13 +390,13 @@ struct DiskDetail: View {
                 HStack(spacing: 14) {
                     VStack(alignment: .leading, spacing: 4) {
                         Label(Format.rate(monitor.diskRead), systemImage: "arrow.down.doc")
-                            .font(.system(.callout, design: .rounded).weight(.semibold).monospacedDigit())
+                            .font(.system(.callout).weight(.semibold).monospacedDigit())
                             .foregroundStyle(.blue)
                         Sparkline(values: monitor.diskReadHistory, tint: .blue).frame(height: 40)
                     }
                     VStack(alignment: .leading, spacing: 4) {
                         Label(Format.rate(monitor.diskWrite), systemImage: "arrow.up.doc")
-                            .font(.system(.callout, design: .rounded).weight(.semibold).monospacedDigit())
+                            .font(.system(.callout).weight(.semibold).monospacedDigit())
                             .foregroundStyle(.orange)
                         Sparkline(values: monitor.diskWriteHistory, tint: .orange).frame(height: 40)
                     }
@@ -409,13 +430,13 @@ struct NetworkDetail: View {
             HStack(spacing: 10) {
                 DetailCard(title: L("İndirme")) {
                     Text(Format.rate(monitor.download))
-                        .font(.system(.title3, design: .rounded).weight(.bold).monospacedDigit())
+                        .font(.system(.title3).weight(.bold).monospacedDigit())
                         .foregroundStyle(.green)
                     Sparkline(values: monitor.downloadHistory, tint: .green).frame(height: 46)
                 }
                 DetailCard(title: L("Yükleme")) {
                     Text(Format.rate(monitor.upload))
-                        .font(.system(.title3, design: .rounded).weight(.bold).monospacedDigit())
+                        .font(.system(.title3).weight(.bold).monospacedDigit())
                         .foregroundStyle(.orange)
                     Sparkline(values: monitor.uploadHistory, tint: .orange).frame(height: 46)
                 }

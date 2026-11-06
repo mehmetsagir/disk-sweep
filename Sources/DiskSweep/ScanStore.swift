@@ -39,6 +39,16 @@ final class ScanStore {
     var results: [CleanupOutcome] = []
     var showResults = false
 
+    // AI review
+    var verdicts: [String: AIVerdict] = [:]
+    var isReviewing = false
+    /// Outcome of the last review (problem or summary), shown as a note until the next review.
+    var reviewNote: String?
+
+    // Whole-device scan (Smart Scan)
+    var deviceProgress = DeviceScanProgress()
+    @ObservationIgnored private var deviceTask: Task<Void, Never>?
+
     @ObservationIgnored private var folderTask: Task<Void, Never>?
     private static let excludedKey = "excludedFolderPaths"
 
@@ -61,7 +71,7 @@ final class ScanStore {
     }
 
     var selectedItems: [CleanupItem] {
-        let order = Catalog.all.map(\.id) + [FolderScan.categoryID]
+        let order = Catalog.all.map(\.id) + DeviceScan.groups.map(\.id) + [FolderScan.categoryID]
         return order.flatMap { states[$0]?.items ?? [] }.filter { selection.contains($0.id) }
     }
 
@@ -308,6 +318,115 @@ final class ScanStore {
 
     func clearAllSelection() { selection.removeAll() }
 
+    // MARK: Cleanup levels
+
+    var allCategoryItems: [CleanupItem] {
+        (Catalog.all.map(\.id) + DeviceScan.groups.map(\.id)).flatMap { states[$0]?.items ?? [] }
+    }
+
+    // MARK: Whole-device scan
+
+    var isDeviceScanning: Bool { DeviceScan.groups.contains { states[$0.id]?.isScanning == true } }
+
+    /// Walks the home folder for big files, old downloads, installers and stray dependency folders.
+    func scanDevice() {
+        deviceTask?.cancel()
+        deviceProgress = DeviceScanProgress()
+        for group in DeviceScan.groups {
+            states[group.id] = CategoryState(items: [], note: nil, isScanning: true, hasScanned: false)
+        }
+        let guardrail = self.guardrail
+
+        deviceTask = Task {
+            let work = Task.detached(priority: .utility) {
+                DeviceScan.scan(guardrail: guardrail) { progress in
+                    Task { @MainActor [weak self] in self?.deviceProgress = progress }
+                }
+            }
+            let items = await withTaskCancellationHandler { await work.value } onCancel: { work.cancel() }
+
+            if Task.isCancelled {
+                for group in DeviceScan.groups { states[group.id]?.isScanning = false }
+                return
+            }
+            let grouped = Dictionary(grouping: items, by: \.categoryID)
+            withAnimation(Motion.smooth) {
+                for group in DeviceScan.groups {
+                    let found = (grouped[group.id] ?? []).sorted { ($0.size ?? 0) > ($1.size ?? 0) }
+                    states[group.id] = CategoryState(items: found, note: nil, isScanning: false, hasScanned: true)
+                    lastScanned[group.id] = Date()
+                }
+            }
+            pruneSelection()
+        }
+    }
+
+    func cancelDeviceScan() {
+        deviceTask?.cancel()
+        for group in DeviceScan.groups { states[group.id]?.isScanning = false }
+    }
+
+    /// Ticks what the level allows. With `items` only those are re-evaluated (the open page);
+    /// without, every category is, and the selection is replaced.
+    func applyLevel(_ level: CleanupLevel, to items: [CleanupItem]? = nil) {
+        let now = Date()
+        let scope = items ?? allCategoryItems
+        let chosen = Set(scope.filter { level.shouldSelect($0, verdict: verdicts[$0.id], now: now) }.map(\.id))
+        if items == nil {
+            selection = chosen
+        } else {
+            selection.subtract(scope.map(\.id))
+            selection.formUnion(chosen)
+        }
+    }
+
+    // MARK: AI review
+
+    var agentConfig: AgentConfig {
+        let defaults = UserDefaults.standard
+        let kind = AgentKind(rawValue: defaults.string(forKey: AppSettings.agentKind) ?? "") ?? .claude
+        return AgentConfig(kind: kind, customCommand: defaults.string(forKey: AppSettings.agentCustomCommand) ?? "")
+    }
+
+    /// Asks the configured agent which of `items` are safe and ticks those. Only the check boxes
+    /// change: nothing is deleted, and the safety guard and the confirm sheet still apply.
+    func reviewWithAgent(_ items: [CleanupItem]) {
+        guard !isReviewing else { return }
+        let candidates = AgentReview.reviewable(items)
+        guard !candidates.isEmpty else {
+            reviewNote = L("İncelenecek öğe yok.")
+            return
+        }
+        isReviewing = true
+        reviewNote = nil
+        let config = agentConfig
+        let home = guardrail.home
+
+        Task {
+            let result = await AgentReview.run(items: candidates, config: config, home: home)
+            isReviewing = false
+            switch result {
+            case .failure(let error):
+                reviewNote = String(describing: error)
+            case .success(let found):
+                withAnimation(Motion.smooth) {
+                    for verdict in found { verdicts[verdict.itemID] = verdict }
+                    let approved = found.filter(\.safe).map(\.itemID)
+                    let valid = Set(candidates.map(\.id))
+                    selection.formUnion(approved.filter(valid.contains))
+                    // An item the agent now rejects must not stay ticked from an earlier pass.
+                    for verdict in found where !verdict.safe { selection.remove(verdict.itemID) }
+                    reviewNote = L("AI \(found.count) öğeyi inceledi: \(approved.count) tanesini güvenli buldu ve işaretledi.")
+                }
+            }
+        }
+    }
+
+    /// Mode shown in the confirm sheet and used by the cleaner.
+    func effectiveMode(of item: CleanupItem) -> RemovalMode? {
+        item.effectiveRemovalMode(permanentDeletion: AppSettings.permanentDeletionEnabled, home: guardrail.home)
+    }
+
     // MARK: Deleting
 
     func performDeletion() async {
@@ -320,7 +439,10 @@ final class ScanStore {
         deletingProgress = 0
 
         // Uses the CURRENT guard, so exclusions are enforced even for stale items.
-        let cleaner = Cleaner(guardrail: guardrail)
+        let running = Set(NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier))
+        let cleaner = Cleaner(guardrail: guardrail,
+                              permanentDeletion: AppSettings.permanentDeletionEnabled,
+                              isAppRunning: { running.contains($0) })
         // Sequential on purpose: docker/simctl commands must not run concurrently.
         for item in items {
             deletingTitle = item.title
@@ -332,6 +454,10 @@ final class ScanStore {
         let succeeded = Set(results.filter(\.succeeded).map(\.item.id))
         selection.subtract(succeeded)
         let touched = Set(results.map(\.item.categoryID))
+        // Whole-device findings are not rescanned (that is a long walk): the deleted ones just disappear.
+        for id in touched where DeviceScan.isDeviceCategory(id) {
+            states[id]?.items.removeAll { succeeded.contains($0.id) }
+        }
 
         isDeleting = false
         showResults = true

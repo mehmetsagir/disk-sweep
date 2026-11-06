@@ -3,3 +3,5 @@
 *.xcodeproj/xcuserdata/
 build/
 dist/
+.omx/
+.build-birch/

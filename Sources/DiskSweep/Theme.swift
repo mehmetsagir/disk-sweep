@@ -2,19 +2,22 @@ import SwiftUI
 import DiskSweepCore
 
 enum Motion {
-    static let spring = Animation.spring(response: 0.42, dampingFraction: 0.82)
-    static let smooth = Animation.smooth(duration: 0.32)
-    static let snappy = Animation.snappy(duration: 0.24)
+    // Short, damped transitions: no bounce, nothing that draws attention to itself.
+    static let spring = Animation.smooth(duration: 0.28)
+    static let smooth = Animation.smooth(duration: 0.24)
+    static let snappy = Animation.snappy(duration: 0.16)
 }
 
 extension CategoryGroup {
+    /// Muted, flat hues: enough to tell areas apart, never loud.
     var tint: Color {
         switch self {
         case .xcode: return .blue
-        case .docker: return .cyan
+        case .docker: return .teal
         case .packageCaches: return .orange
-        case .projects: return .purple
-        case .system: return .teal
+        case .projects: return .indigo
+        case .system: return .green
+        case .apps: return .brown
         }
     }
 }
@@ -39,26 +42,31 @@ extension SafetyLevel {
 
 func tint(forCategory id: String) -> Color {
     if id == FolderScan.categoryID { return .indigo }
-    return Catalog.all.first { $0.id == id }?.group.tint ?? .accentColor
+    switch id {
+    case DeviceScan.largeID: return .brown
+    case DeviceScan.downloadsID: return .blue
+    case DeviceScan.installersID: return .teal
+    case DeviceScan.dependenciesID: return .indigo
+    default: return Catalog.all.first { $0.id == id }?.group.tint ?? .accentColor
+    }
 }
 
-/// Rounded gradient tile with a white SF Symbol, like System Settings icons.
+/// Small rounded tile with an SF Symbol: a soft tint of the color behind a full-color glyph. Flat on purpose.
 struct IconTile: View {
     let symbol: String
     let tint: Color
     var size: CGFloat = 26
+    var emphasized = true
 
     var body: some View {
-        RoundedRectangle(cornerRadius: size * 0.28, style: .continuous)
-            .fill(LinearGradient(colors: [tint.opacity(0.95), tint.opacity(0.65)],
-                                 startPoint: .topLeading, endPoint: .bottomTrailing))
+        RoundedRectangle(cornerRadius: size * 0.26, style: .continuous)
+            .fill(tint.opacity(0.17))
             .overlay(
                 Image(systemName: symbol)
-                    .font(.system(size: size * 0.5, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .font(.system(size: size * 0.48, weight: .medium))
+                    .foregroundStyle(tint)
             )
             .frame(width: size, height: size)
-            .shadow(color: tint.opacity(0.35), radius: size * 0.15, y: size * 0.07)
     }
 }
 

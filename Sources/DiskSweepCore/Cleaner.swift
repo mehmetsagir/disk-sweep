@@ -10,9 +10,16 @@ public struct CleanupOutcome: Identifiable, Sendable {
 
 public struct Cleaner: Sendable {
     public let guardrail: SafetyGuard
+    /// When false (the default), items that would be deleted for good go to the Trash instead.
+    public let permanentDeletion: Bool
+    /// Tells whether an app is running right now (by bundle ID). Uninstalling a running app is refused.
+    private let isAppRunning: @Sendable (String) -> Bool
 
-    public init(guardrail: SafetyGuard) {
+    public init(guardrail: SafetyGuard, permanentDeletion: Bool = false,
+                isAppRunning: @escaping @Sendable (String) -> Bool = { _ in false }) {
         self.guardrail = guardrail
+        self.permanentDeletion = permanentDeletion
+        self.isAppRunning = isAppRunning
     }
 
     public func clean(_ item: CleanupItem) async -> CleanupOutcome {
@@ -33,8 +40,25 @@ public struct Cleaner: Sendable {
             } catch {
                 return failure(L("Güvenlik kontrolü reddetti: \(String(describing: error))"))
             }
-            if let message = await Self.remove(validated, mode: mode) { return failure(message) }
+            let effective = item.effectiveRemovalMode(permanentDeletion: permanentDeletion, home: guardrail.home) ?? mode
+            if let message = await Self.remove(validated, mode: effective) { return failure(message) }
             return CleanupOutcome(item: item, freedBytes: freed, errorMessage: nil)
+
+        case .uninstall(let plan):
+            let approved: SafetyGuard.ApprovedUninstall
+            do {
+                approved = try guardrail.validateUninstall(plan)
+            } catch {
+                return failure(L("Güvenlik kontrolü reddetti: \(String(describing: error))"))
+            }
+            if isAppRunning(plan.bundleID) { return failure(L("Uygulama şu an açık — önce kapatın")) }
+            // The app first: if it cannot be removed, its data stays where it is.
+            if let message = await Self.remove(approved.app, mode: .trash) { return failure(message) }
+            var firstError: String?
+            for leftover in approved.leftovers {
+                if let message = await Self.remove(leftover, mode: .trash), firstError == nil { firstError = message }
+            }
+            return CleanupOutcome(item: item, freedBytes: freed, errorMessage: firstError)
 
         case .trashUserSelected(let url):
             let validated: URL

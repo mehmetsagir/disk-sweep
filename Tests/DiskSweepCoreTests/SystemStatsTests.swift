@@ -2,6 +2,15 @@ import XCTest
 @testable import DiskSweepCore
 
 final class SystemStatsTests: XCTestCase {
+    func testGPUUtilizationParsing() {
+        XCTAssertEqual(GPUReader.fraction(from: ["Device Utilization %": 42]) ?? -1, 0.42, accuracy: 0.0001)
+        XCTAssertEqual(GPUReader.fraction(from: ["Device Utilization %": "12.5"]) ?? -1, 0.125, accuracy: 0.0001)
+        XCTAssertNil(GPUReader.fraction(from: [:]))
+        XCTAssertNil(GPUReader.fraction(from: ["Device Utilization %": -1]))
+        XCTAssertNil(GPUReader.fraction(from: ["Device Utilization %": 101]))
+        XCTAssertNil(GPUReader.fraction(from: ["Device Utilization %": "invalid"]))
+    }
+
     func testCPUFractionFromTickDeltas() {
         let before = CPUTicks(user: 100, system: 50, idle: 850, nice: 0)
         let after = CPUTicks(user: 160, system: 70, idle: 920, nice: 0)  // +60 +20 busy, +70 idle
