@@ -282,6 +282,51 @@ struct CPUDetail: View {
     }
 }
 
+// MARK: - GPU
+
+struct GPUDetail: View {
+    let monitor: SystemMonitor
+    let openMainWindow: () -> Void
+
+    var body: some View {
+        let gpu = monitor.gpu ?? 0
+        let history = monitor.gpuHistory
+        let tint: Color = gpu > 0.85 ? .red : (gpu > 0.6 ? .orange : .teal)
+        DetailShell(symbol: "display", tint: .teal, title: L("Grafik işlemci"), subtitle: monitor.info.cpuModel,
+                    value: percent(gpu), valueTint: tint, freeKind: .gpu, openMainWindow: openMainWindow) {
+            DetailCard(title: L("Kullanım geçmişi")) {
+                Sparkline(values: history, tint: tint, ceiling: 1).frame(height: 62)
+                HStack(spacing: 0) {
+                    stat(L("Şu an"), gpu)
+                    stat(L("Ortalama"), history.reduce(0, +) / Double(max(history.count, 1)))
+                    stat(L("En yüksek"), history.max() ?? gpu)
+                }
+            }
+
+            DetailCard(title: L("Sistem")) {
+                InfoRow(label: L("Yük ortalaması (1 · 5 · 15 dk)"),
+                        value: String(format: "%.2f · %.2f · %.2f", monitor.load.one, monitor.load.five, monitor.load.fifteen))
+                InfoRow(label: L("Çalışma süresi"), value: Format.duration(monitor.uptime))
+            }
+
+            DetailCard(title: L("En yoğun uygulamalar")) {
+                ProcessList(processes: monitor.topCPU, metric: .cpu, tint: tint)
+                Text(L("GPU kullanımı uygulama bazında okunamaz; en yoğun uygulamalar işlemciye göre sıralanır."))
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+        }
+    }
+
+    private func stat(_ title: String, _ value: Double) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(title).font(.caption).foregroundStyle(.secondary)
+            Text(percent(value)).font(.system(.callout).weight(.semibold).monospacedDigit())
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 // MARK: - Memory
 
 struct MemoryDetail: View {

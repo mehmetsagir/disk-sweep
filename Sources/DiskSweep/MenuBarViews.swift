@@ -86,8 +86,16 @@ private struct GPUMenuBarArt: View {
             StackedReading(label: "GPU", value: "\(Int((value * 100).rounded()))%")
                 .frame(width: 31, alignment: .leading)
             if showGraph {
-                Sparkline(values: Array(history.suffix(20)), tint: .black, ceiling: 1, length: 20)
-                    .frame(width: 28, height: 15)
+                // A level bar, not a second sparkline: CPU and GPU sit side by side and must not look alike.
+                ZStack(alignment: .bottom) {
+                    RoundedRectangle(cornerRadius: 2.5, style: .continuous)
+                        .stroke(Color.black.opacity(0.45), lineWidth: 1.2)
+                    RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                        .fill(Color.black)
+                        .frame(height: max(2, 11 * min(max(value, 0), 1)))
+                        .padding(2)
+                }
+                .frame(width: 9, height: 15)
             }
         }
         .padding(.horizontal, 3)
@@ -200,7 +208,7 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         let openMain: () -> Void = { [weak self] in self?.openMainWindow() }
         configure(overviewPopover, content: SystemPopover(monitor: monitor, openMainWindow: openMain))
         popovers[.cpu] = makePopover(CPUDetail(monitor: monitor, openMainWindow: openMain))
-        popovers[.gpu] = makePopover(GPUCard(monitor: monitor).padding(14).frame(width: 350))
+        popovers[.gpu] = makePopover(GPUDetail(monitor: monitor, openMainWindow: openMain))
         popovers[.memory] = makePopover(MemoryDetail(monitor: monitor, openMainWindow: openMain))
         popovers[.disk] = makePopover(DiskDetail(monitor: monitor, openMainWindow: openMain))
         popovers[.network] = makePopover(NetworkDetail(monitor: monitor, openMainWindow: openMain))
@@ -529,13 +537,41 @@ private struct GPUCard: View {
 
     var body: some View {
         if let gpu = monitor.gpu {
-            let tint: Color = gpu > 0.85 ? .red : (gpu > 0.6 ? .orange : .blue)
-            MetricCard(symbol: "cpu", tint: .blue, title: L("Grafik işlemci"),
+            let tint: Color = gpu > 0.85 ? .red : (gpu > 0.6 ? .orange : .teal)
+            let history = monitor.gpuHistory
+            MetricCard(symbol: "display", tint: .teal, title: L("Grafik işlemci"),
                        value: "\(Int((gpu * 100).rounded()))%", valueTint: tint) {
-                Sparkline(values: monitor.gpuHistory, tint: tint, ceiling: 1).frame(height: 34)
-                LevelBar(fraction: gpu, tint: tint)
+                ZStack {
+                    VStack(spacing: 0) {
+                        ForEach(0..<3, id: \.self) { row in
+                            Rectangle().fill(Color.primary.opacity(0.08)).frame(height: 1)
+                            if row < 2 { Spacer(minLength: 0) }
+                        }
+                    }
+                    Sparkline(values: history, tint: tint, ceiling: 1)
+                }
+                .frame(height: 64)
+                HStack(spacing: 0) {
+                    GPUStat(title: L("Şu an"), value: gpu)
+                    GPUStat(title: L("Ortalama"), value: history.reduce(0, +) / Double(max(history.count, 1)))
+                    GPUStat(title: L("En yüksek"), value: history.max() ?? gpu)
+                }
             }
         }
+    }
+}
+
+private struct GPUStat: View {
+    let title: String
+    let value: Double
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(title).font(.caption).foregroundStyle(.secondary)
+            Text("\(Int((value * 100).rounded()))%")
+                .font(.system(.callout).weight(.semibold).monospacedDigit())
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
