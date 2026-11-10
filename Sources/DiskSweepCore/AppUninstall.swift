@@ -159,7 +159,9 @@ extension Scanners {
         }
 
         let sizes = await SizeCalculator.concurrentMap(plans) { plan in
-            ([plan.appURL] + plan.leftovers).reduce(Int64(0)) { $0 + SizeCalculator.allocatedSize(of: $1) }
+            var total: Int64 = 0
+            for url in [plan.appURL] + plan.leftovers { total += await SizeCalculator.throttledSize(of: url) }
+            return total
         }
 
         var items: [CleanupItem] = []

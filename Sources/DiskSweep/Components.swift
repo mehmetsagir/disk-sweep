@@ -101,8 +101,43 @@ struct EmptyState: View {
     }
 }
 
+/// Whether the user can actually see the app's main window. Endless animations check this so a
+/// hidden or covered window (menu bar mode) does not keep SwiftUI laying out every frame.
+@MainActor
+enum AppVisibility {
+    static func isOnScreen() -> Bool {
+        NSApp.isActive && NSApp.windows.contains {
+            $0.canBecomeMain && $0.isVisible && !$0.isMiniaturized && $0.occlusionState.contains(.visible)
+        }
+    }
+}
+
+extension View {
+    /// Keeps `isOnScreen` in sync with window visibility and app activation.
+    func trackOnScreen(_ isOnScreen: Binding<Bool>) -> some View {
+        self
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.didChangeOcclusionStateNotification)) { _ in
+                isOnScreen.wrappedValue = AppVisibility.isOnScreen()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { _ in
+                // The closing window still reports isVisible during this callback.
+                DispatchQueue.main.async { isOnScreen.wrappedValue = AppVisibility.isOnScreen() }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+                isOnScreen.wrappedValue = AppVisibility.isOnScreen()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in
+                isOnScreen.wrappedValue = false
+            }
+    }
+}
+
 struct SkeletonList: View {
     @State private var pulse = false
+    @State private var onScreen = AppVisibility.isOnScreen()
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var animating: Bool { onScreen && !reduceMotion }
 
     var body: some View {
         VStack(spacing: 8) {
@@ -119,13 +154,15 @@ struct SkeletonList: View {
                 .foregroundStyle(Color.primary.opacity(pulse ? 0.10 : 0.05))
                 .padding(12)
                 .card()
-                .animation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true).delay(Double(index) * 0.08), value: pulse)
             }
             Spacer(minLength: 0)
         }
+        .animation(animating ? .easeInOut(duration: 1.0).repeatForever(autoreverses: true) : nil, value: pulse)
         .padding(.horizontal, 24)
         .padding(.top, 4)
-        .onAppear { pulse = true }
+        .trackOnScreen($onScreen)
+        .onAppear { pulse = animating }
+        .onChange(of: animating) { _, active in pulse = active }
     }
 }
 

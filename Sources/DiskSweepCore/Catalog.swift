@@ -161,7 +161,7 @@ enum Scan {
     /// safety guard are silently dropped, so they can never appear in the UI.
     static func buildItems(categoryID: String, entries: [Entry], ctx: ScanContext, minimumSize: Int64 = 1) async -> [CleanupItem] {
         let valid = entries.filter { (try? ctx.guardrail.validateRemoval(of: $0.url)) != nil }
-        let sizes = await SizeCalculator.concurrentMap(valid.map(\.url)) { SizeCalculator.allocatedSize(of: $0) }
+        let sizes = await SizeCalculator.concurrentMap(valid.map(\.url)) { await SizeCalculator.throttledSize(of: $0) }
         var items: [CleanupItem] = []
         for (entry, measured) in zip(valid, sizes) {
             let size = entry.size ?? measured

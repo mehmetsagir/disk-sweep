@@ -86,7 +86,12 @@ struct ContentView: View {
             let defaults = UserDefaults.standard
             if let query = defaults.string(forKey: "DiskSweepSearch") { store.searchText = query }
             if defaults.bool(forKey: "DiskSweepExclusions") { store.showExclusions = true }
-            store.scanAll()
+            // Menu bar mode closes the window right after launch: do not walk the whole disk for nobody.
+            // When the window is opened later, `refreshStale()` scans whatever is out of date.
+            try? await Task.sleep(for: .seconds(1.2))
+            if NSApp.windows.contains(where: { $0.title == "DiskSweep" && $0.isVisible }) {
+                store.scanAll()
+            }
             if defaults.bool(forKey: "DiskSweepPreselect") {
                 // Screenshot testing only: selects (never deletes) the safe items.
                 try? await Task.sleep(for: .seconds(14))

@@ -83,7 +83,7 @@ public enum DeviceScan {
         var lastReport = Date.distantPast
         func report(_ path: String, force: Bool = false) {
             let now = Date()
-            guard force || now.timeIntervalSince(lastReport) > 0.1 else { return }
+            guard force || now.timeIntervalSince(lastReport) > 0.25 else { return }
             lastReport = now
             state.currentPath = path.replacingOccurrences(of: home.path, with: "~")
             progress(state)

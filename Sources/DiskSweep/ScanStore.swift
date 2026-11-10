@@ -112,7 +112,7 @@ final class ScanStore {
         let context = ScanContext(guardrail: guardrail, runningBundleIDs: runningIDs)
         let startedGeneration = generation
 
-        Task {
+        Task(priority: .utility) {
             let outcome = await category.scan(context)
             if startedGeneration != generation {
                 // Exclusions changed mid-scan: this result may show now-protected items.
@@ -198,7 +198,7 @@ final class ScanStore {
         }
         let guardrail = self.guardrail
 
-        folderTask = Task {
+        folderTask = Task(priority: .utility) {
             let (urls, denied) = await Task.detached { FolderScan.listChildren(of: target) }.value
             guard !Task.isCancelled else { return }
 
@@ -216,10 +216,10 @@ final class ScanStore {
             var lastPublish = Date()
             await withTaskGroup(of: (Int, Int64).self) { group in
                 var next = 0
-                while next < min(8, urls.count) {
+                while next < min(3, urls.count) {
                     let index = next
                     let child = urls[index]
-                    group.addTask { (index, SizeCalculator.allocatedSize(of: child)) }
+                    group.addTask { (index, await SizeCalculator.throttledSize(of: child)) }
                     next += 1
                 }
                 while let (index, size) = await group.next() {
@@ -232,7 +232,7 @@ final class ScanStore {
                     if next < urls.count {
                         let nextIndex = next
                         let child = urls[nextIndex]
-                        group.addTask { (nextIndex, SizeCalculator.allocatedSize(of: child)) }
+                        group.addTask { (nextIndex, await SizeCalculator.throttledSize(of: child)) }
                         next += 1
                     }
                 }

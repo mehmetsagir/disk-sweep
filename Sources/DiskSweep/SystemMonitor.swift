@@ -90,7 +90,8 @@ final class SystemMonitor {
         let network = networkSampler.sampleDetailed(now: now)
         let storage = diskSampler.sample(now: now)
 
-        withAnimation(Motion.smooth) {
+        // Animate only while a detail popover is visible; otherwise every tick would re-diff all views.
+        withAnimation(detailActive ? Motion.smooth : nil) {
             cpu = processor.total
             cpuUser = processor.user
             cpuSystem = processor.system

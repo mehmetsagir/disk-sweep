@@ -186,13 +186,15 @@ private struct OrbitHero: View {
     var isLit: (SmartStage) -> Bool = { _ in true }
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// False while the app is hidden, inactive or fully covered, so the orbit stops redrawing.
+    @State private var onScreen = AppVisibility.isOnScreen()
 
     private let canvas: CGFloat = 300
     private var inner: [SmartStage] { Array(stages.prefix(5)) }
     private var outer: [SmartStage] { Array(stages.dropFirst(5)) }
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion)) { context in
+        TimelineView(.animation(minimumInterval: 1 / 15, paused: reduceMotion || !onScreen)) { context in
             let t = reduceMotion ? 0 : context.date.timeIntervalSinceReferenceDate
             let speed = scanning ? 2.6 : 1.0
             ZStack {
@@ -208,8 +210,10 @@ private struct OrbitHero: View {
                 core(t: t)
             }
             .frame(width: canvas, height: canvas)
+            .drawingGroup()
         }
         .frame(width: canvas, height: canvas)
+        .trackOnScreen($onScreen)
         .scaleEffect(scale)
         .frame(width: canvas * scale, height: canvas * scale)
     }

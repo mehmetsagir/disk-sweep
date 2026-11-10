@@ -1,6 +1,41 @@
 import Foundation
 
+/// Caps how many blocking disk walks run at once across the whole app. Without it every category scan,
+/// folder scan and artifact measurement fans out on its own and saturates all cores.
+public actor DiskWorkGate {
+    public static let shared = DiskWorkGate(limit: 2)
+
+    private let limit: Int
+    private var running = 0
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    init(limit: Int) { self.limit = limit }
+
+    fileprivate func acquire() async {
+        if running < limit { running += 1; return }
+        await withCheckedContinuation { waiters.append($0) }
+    }
+
+    fileprivate func release() {
+        if waiters.isEmpty { running -= 1 } else { waiters.removeFirst().resume() }
+    }
+
+    /// Runs the blocking `work` once a slot is free.
+    /// Not actor-isolated: the blocking work must run outside the actor, or it would serialize everything.
+    public nonisolated func run<T: Sendable>(_ work: @Sendable () -> T) async -> T {
+        await acquire()
+        let result = work()
+        await release()
+        return result
+    }
+}
+
 public enum SizeCalculator {
+    /// `allocatedSize(of:)`, throttled by the shared `DiskWorkGate`.
+    public static func throttledSize(of url: URL) async -> Int64 {
+        await DiskWorkGate.shared.run { allocatedSize(of: url) }
+    }
+
     /// Bytes actually allocated on disk for a file or a whole directory tree.
     /// Symlinks are never followed.
     public static func allocatedSize(of url: URL) -> Int64 {
@@ -9,14 +44,15 @@ public enum SizeCalculator {
         if values.isSymbolicLink == true { return 0 }
         if values.isDirectory != true { return Int64(values.totalFileAllocatedSize ?? 0) }
 
+        let fileKeys: [URLResourceKey] = [.totalFileAllocatedSizeKey, .isRegularFileKey]
         guard let enumerator = FileManager.default.enumerator(
-            at: url, includingPropertiesForKeys: keys, options: [], errorHandler: { _, _ in true }
+            at: url, includingPropertiesForKeys: fileKeys, options: [], errorHandler: { _, _ in true }
         ) else { return 0 }
 
         var total: Int64 = 0
         while let file = enumerator.nextObject() as? URL {
             if Task.isCancelled { break }
-            guard let v = try? file.resourceValues(forKeys: Set(keys)), v.isRegularFile == true else { continue }
+            guard let v = try? file.resourceValues(forKeys: Set(fileKeys)), v.isRegularFile == true else { continue }
             total += Int64(v.totalFileAllocatedSize ?? 0)
         }
         return total
@@ -25,7 +61,7 @@ public enum SizeCalculator {
     /// Runs `transform` over `inputs` with at most `limit` running at once,
     /// keeping the result order.
     public static func concurrentMap<T: Sendable, R: Sendable>(
-        _ inputs: [T], limit: Int = 8, _ transform: @escaping @Sendable (T) async -> R
+        _ inputs: [T], limit: Int = 3, _ transform: @escaping @Sendable (T) async -> R
     ) async -> [R] {
         var results = [R?](repeating: nil, count: inputs.count)
         await withTaskGroup(of: (Int, R).self) { group in
